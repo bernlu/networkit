@@ -14,7 +14,9 @@
 #include <vector>
 
 #include <omp.h>
+
 #include <networkit/auxiliary/Log.hpp>
+#include <networkit/graph/Graph.hpp>
 #include <networkit/robustness/GreedyOptimizer.hpp>
 
 namespace NetworKit {
@@ -40,10 +42,10 @@ public:
     using typename GreedyOptimizer<Item>::gainFnType;
     using typename GreedyOptimizer<Item>::pickedItemCallbackType;
 
-    SubmodularGreedy(std::vector<Item> &items, count k, gainFnType gainFn,
+    SubmodularGreedy(const std::vector<Item> &items, count k, gainFnType gainFn,
                      pickedItemCallbackType pickedItemCallback)
         : GreedyOptimizer<Item>(items, k, std::move(gainFn), std::move(pickedItemCallback)){};
-    SubmodularGreedy(std::vector<Item> &items, count k) : GreedyOptimizer<Item>(items, k){};
+    SubmodularGreedy(const std::vector<Item> &items, count k) : GreedyOptimizer<Item>(items, k){};
     SubmodularGreedy(count k) : GreedyOptimizer<Item>(k){};
     virtual void run() override;
 
@@ -101,6 +103,19 @@ struct is_debug_printable<T, decltype(DEBUG(std::declval<T &>()), void())> : std
 template <typename T>
 static constexpr auto is_debug_printable_v = is_debug_printable<T>::value;
 
+template <class T>
+void debug_print_sg(T t) {
+    if constexpr (is_debug_printable_v<T>)
+        DEBUG(t);
+    else
+        DEBUG("()");
+}
+
+template <>
+inline void debug_print_sg<Edge>(Edge t) {
+    DEBUG("Edge=(", t.u, ", ", t.v, ")");
+}
+
 template <class Item>
 void SubmodularGreedy<Item>::run() {
     this->assureCallbacksSet();
@@ -124,6 +139,9 @@ void SubmodularGreedy<Item>::run() {
                 itemQueue.pop();
             }
 
+            DEBUG(" INSPECTING candidate value = ", c.value, " lastupdated = ", c.lastUpdated);
+            debug_print_sg(c.item);
+
             if (c.lastUpdated == round)
                 break; // top updated entry found.
             else {
@@ -140,7 +158,8 @@ void SubmodularGreedy<Item>::run() {
             // if constexpr (is_debug_printable_v<Item>)
             //     DEBUG(" SELECTED value = ", c.value, " of item = ", c.item);
             // else
-                DEBUG(" SELECTED value = ", c.value, " of item = <not printable>");
+            DEBUG(" SELECTED value = ", c.value, " picked item:");
+            debug_print_sg<Item>(c.item);
 
             this->pickedItemCallback(c.item);
             round++;

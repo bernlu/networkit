@@ -35,13 +35,13 @@ public:
      * @param pickedItemCallback callback function that will be run every time an Item is picked to
      * allow updating of relevant data structures and updating the gain function
      */
-    GreedyOptimizer(std::vector<Item> &items, count k, gainFnType gainFn,
+    GreedyOptimizer(const std::vector<Item> &items, count k, gainFnType gainFn,
                     pickedItemCallbackType pickedItemCallback);
 
-    GreedyOptimizer(std::vector<Item> &items, count k);
+    GreedyOptimizer(const std::vector<Item> &items, count k);
     GreedyOptimizer(count k);
 
-    void setItems(std::vector<Item> &items);
+    // void setItems(const std::vector<Item> &items);
     void setGainFunction(gainFnType gainFn);
     void setPickedItemCallback(pickedItemCallbackType pickedItemCallback);
 
@@ -58,10 +58,10 @@ public:
 protected:
     gainFnType gainFn;                         // function that computes the gain for an item
     pickedItemCallbackType pickedItemCallback; // callback that is run for each picked item
-    std::vector<Item> &items;                  // all candidate items
+    const std::vector<Item> &items;            // all candidate items
     const count k;                             // maximum number of items to add
-    std::vector<Item> result;
-    double totalGain; // sum of all gains in result
+    std::vector<Item> result;                  // vector of picked items
+    double totalGain = 0;                      // sum of all gains in result
 
     void assureCallbacksSet() {
         if (!gainFn)
@@ -72,13 +72,14 @@ protected:
 };
 
 template <class Item>
-GreedyOptimizer<Item>::GreedyOptimizer(std::vector<Item> &items, count k, gainFnType gainFn,
+GreedyOptimizer<Item>::GreedyOptimizer(const std::vector<Item> &items, count k, gainFnType gainFn,
                                        pickedItemCallbackType pickedItemCallback)
     : gainFn(std::move(gainFn)), pickedItemCallback(std::move(pickedItemCallback)), items(items),
       k(k){};
 
 template <class Item>
-GreedyOptimizer<Item>::GreedyOptimizer(std::vector<Item> &items, count k) : items(items), k(k){};
+GreedyOptimizer<Item>::GreedyOptimizer(const std::vector<Item> &items, count k)
+    : items(items), k(k){};
 
 template <class Item>
 GreedyOptimizer<Item>::GreedyOptimizer(count k) : k(k){};
@@ -86,11 +87,6 @@ GreedyOptimizer<Item>::GreedyOptimizer(count k) : k(k){};
 template <class Item>
 void GreedyOptimizer<Item>::setGainFunction(gainFnType gainFn) {
     this->gainFn = std::move(gainFn);
-};
-
-template <class Item>
-void GreedyOptimizer<Item>::setItems(std::vector<Item> &items) {
-    this->items = items;
 };
 
 template <class Item>

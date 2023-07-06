@@ -41,7 +41,8 @@ struct _ItemWrapper {
 
 template <class Item>
 bool operator<(const _ItemWrapper<Item> &left, const _ItemWrapper<Item> &right) {
-    return left.value < right.value || (right.value == left.value && left.item < right.item);
+    return left.value < right.value; // || (right.value == left.value && left.item < right.item);
+                                     // this second part is not required for the pq to work. (?)
 }
 
 template <class Item>
