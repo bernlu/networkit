@@ -295,6 +295,7 @@ public:
      * element movements
      */
     void setValue(index i, index j, ValueType value) {
+        isSorted = false;
         assert(i < nRows);
         assert(j < nCols);
 
