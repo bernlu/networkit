@@ -3,7 +3,9 @@ networkit_add_module(robustness
 	StochasticGreedy.cpp
 	StGreedy.cpp
 	SimplStoch.cpp
+	SimplStochDyn.cpp
 	RobustnessGreedy.cpp
+	ColStoch.cpp
     )
 
 networkit_module_link_modules(robustness
