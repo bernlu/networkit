@@ -8,41 +8,23 @@
 
 #include <networkit/robustness/StGreedy.hpp>
 
+#include <networkit/robustness/DynFullLaplacianInverseSolver.hpp>
+
 namespace NetworKit {
 
-StGreedy::StGreedy(const Graph &G, count k, Problem robustnessProblem, Metric metric,
-                   node focusNode)
-    : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), FullLpinv(G, this->metric) {}
-
-std::vector<Edge> StGreedy::buildCandidateSet() {
-    std::vector<Edge> items;
-    switch (robustnessProblem) {
-    case Problem::GLOBAL_IMPROVEMENT:
-        for (size_t i = 0; i < G.numberOfNodes(); i++) {
-            for (size_t j = 0; j < i; j++) {
-                if (i != j && !this->G.hasEdge(i, j)) {
-                    items.push_back(Edge(i, j));
-                }
-            }
-        }
-        return items;
-    case Problem::LOCAL_IMPROVEMENT:
-        G.forNodes([&](node v) {
-            if (focusNode != v && !this->G.hasEdge(focusNode, v))
-                items.push_back(Edge(focusNode, v));
-        });
-        return items;
-    case Problem::GLOBAL_REDUCTION:
-        G.forEdges([&](node u, node v) { items.push_back(Edge(u, v)); });
-        return items;
-    }
-    assert(false
-           && "unreachable switch statement"); // every case is handled in the switch statement
-}
+StGreedy::StGreedy(Graph &G, count k, Problem robustnessProblem, Metric metric, node focusNode)
+    : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode) {}
 
 void StGreedy::run() {
     // Compute pseudoinverse of laplacian
-    setupLaplacianPseudoinverse(G, metric, robustnessProblem);
+    // setupLaplacianPseudoinverse(G, metric, robustnessProblem);
+
+    prepareGraph();
+    result.clear();
+    resultValue = 0;
+
+    // setup solver
+    setupSolver<DynFullLaplacianInverseSolver>(0); // unused parameter for full lpinv
 
     // candidates
     std::vector<Edge> items = buildCandidateSet();
@@ -52,28 +34,24 @@ void StGreedy::run() {
     if (robustnessProblem == Problem::GLOBAL_REDUCTION) {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
-            auto gain = laplacianPseudoinverseTraceGain(ev);
+            auto gain = lapSolver->totalResistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
-            updateLaplacianPseudoinverse(ev);
-            // DEBUG("updated LPINV");
-            // DEBUG(lpinv);
-            // G.addEdge(e.u, e.v);
+            G.removeEdge(ev.u, ev.v);
+            lapSolver->update(ev);
         });
     } else {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_ADDITION, e.u, e.v);
-            auto gain = laplacianPseudoinverseTraceGain(ev);
+            auto gain = lapSolver->totalResistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_ADDITION, e.u, e.v);
-            updateLaplacianPseudoinverse(ev);
-            // DEBUG("updated LPINV");
-            // DEBUG(lpinv);
-            // G.addEdge(e.u, e.v);
+            G.addEdge(ev.u, ev.v);
+            lapSolver->update(ev);
         });
     }
 
@@ -81,6 +59,9 @@ void StGreedy::run() {
 
     resultValue = greedy.getResultValue();
     result = greedy.getResultItems();
+
+    // reset G to original state
+    restoreGraph();
 
     this->hasRun = true;
 }

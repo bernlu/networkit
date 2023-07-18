@@ -16,19 +16,18 @@
 
 namespace NetworKit {
 
-class SimplStoch final : public RobustnessGreedy, FullLpinv {
+class SimplStoch final : public RobustnessGreedy {
 public:
-    enum class CandidateSetSize { SMALL, LARGE };
-    SimplStoch(const Graph &G, count k, Problem robustnessProblem, double epsilon,
-               Metric metric = Metric::none, node focusNode = none,
-               CandidateSetSize candidatesize = CandidateSetSize::SMALL);
+    SimplStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, bool useJLT = false,
+               std::optional<double> solverEpsilon = {}, Metric metric = Metric::none,
+               node focusNode = none);
 
     virtual void run() override;
 
 private:
-    std::vector<Edge> buildCandidateSet();
-    const CandidateSetSize candidatesize;
+    const bool useJLT;
     const double epsilon;
+    const double solverEpsilon;
 };
 
 } // namespace NetworKit

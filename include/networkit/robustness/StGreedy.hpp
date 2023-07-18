@@ -20,15 +20,12 @@
 
 namespace NetworKit {
 
-class StGreedy final : public RobustnessGreedy, FullLpinv {
+class StGreedy final : public RobustnessGreedy {
 public:
-    StGreedy(const Graph &G, count k, Problem robustnessProblem, Metric metric = Metric::none,
+    StGreedy(Graph &G, count k, Problem robustnessProblem, Metric metric = Metric::none,
              node focusNode = none);
 
     virtual void run() override;
-
-private:
-    std::vector<Edge> buildCandidateSet();
 };
 
 } // namespace NetworKit

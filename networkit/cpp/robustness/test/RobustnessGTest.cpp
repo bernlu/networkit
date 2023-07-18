@@ -11,7 +11,6 @@
 #include <networkit/graph/Graph.hpp>
 #include <networkit/robustness/ColStoch.hpp>
 #include <networkit/robustness/SimplStoch.hpp>
-#include <networkit/robustness/SimplStochDyn.hpp>
 #include <networkit/robustness/StGreedy.hpp>
 
 #include <networkit/robustness/RobustnessGreedy.hpp>
@@ -86,9 +85,25 @@ protected:
 //     std::cout << B << std::endl;
 // }
 
+// TEST_F(RobustnessGTest, laplacianMatrixBug) {
+//     Graph G(4);
+//     G.addEdge(0, 1);
+//     G.addEdge(0, 2);
+//     G.addEdge(0, 3);
+//     G.addEdge(1, 2);
+
+//     std::cout << CSRMatrix::laplacianMatrix(G) << std::endl;
+//     node newnode = G.addNode();
+//     std::cout << CSRMatrix::laplacianMatrix(G) << std::endl;
+//     G.removeNode(newnode);
+//     G.compactEdges();
+//     G.checkConsistency();
+//     std::cout << CSRMatrix::laplacianMatrix(G) << std::endl;
+// }
+
 TEST_F(RobustnessGTest, printAllGains) {
     Graph G = smallGraph();
-    // printAllEdgeGains(G);
+    printAllEdgeGains(G);
     G.removeEdge(1, 0);
     printAllEdgeGains(G);
 }
@@ -100,10 +115,10 @@ TEST_F(RobustnessGTest, testStGreedy_GRIP_smallgraph) {
     greedy.run();
     auto result = greedy.getResultItems();
     EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 5);
-    EXPECT_EQ(result[0].v, 0);
-    EXPECT_EQ(result[1].u, 4);
-    EXPECT_EQ(result[1].v, 2);
+    EXPECT_EQ(result[0].u, 0);
+    EXPECT_EQ(result[0].v, 5);
+    EXPECT_EQ(result[1].u, 2);
+    EXPECT_EQ(result[1].v, 4);
 }
 
 TEST_F(RobustnessGTest, testStGreedy_LRIP_smallgraph) {
@@ -160,7 +175,7 @@ TEST_F(RobustnessGTest, testSimplStoch_LRIP_smallgraph) {
     Aux::Random::setSeed(1, true);
     Graph G = smallGraph();
 
-    SimplStoch greedy(G, 2, SimplStoch::Problem::LOCAL_IMPROVEMENT, 0.9,
+    SimplStoch greedy(G, 2, SimplStoch::Problem::LOCAL_IMPROVEMENT, 0.9, false, {},
                       SimplStoch::Metric::RESISTANCE, 0);
     greedy.run();
     auto result = greedy.getResultItems();
@@ -195,11 +210,11 @@ TEST_F(RobustnessGTest, testSimplStoch_GDEL_smallgraph) {
     EXPECT_NEAR(greedy.getResultValue(), 6.3, 0.1);
 }
 
-TEST_F(RobustnessGTest, testSimplStochDyn_GRIP_smallgraph) {
+TEST_F(RobustnessGTest, testSimplStochJLT_GRIP_smallgraph) {
     Aux::Random::setSeed(1, true);
     Graph G = smallGraph();
 
-    SimplStochDyn greedy(G, 2, SimplStochDyn::Problem::GLOBAL_IMPROVEMENT, 0.99);
+    SimplStoch greedy(G, 2, SimplStoch::Problem::GLOBAL_IMPROVEMENT, 0.99, true);
     greedy.run();
     auto result = greedy.getResultItems();
     EXPECT_EQ(result.size(), 2);
@@ -209,11 +224,11 @@ TEST_F(RobustnessGTest, testSimplStochDyn_GRIP_smallgraph) {
     EXPECT_EQ(result[1].v, 3);
 }
 
-TEST_F(RobustnessGTest, testSimplStochDyn_LRIP_smallgraph) {
+TEST_F(RobustnessGTest, testSimplStochJLT_LRIP_smallgraph) {
     Aux::Random::setSeed(1, true);
     Graph G = smallGraph();
 
-    SimplStochDyn greedy(G, 2, SimplStochDyn::Problem::LOCAL_IMPROVEMENT, 0.9);
+    SimplStoch greedy(G, 2, SimplStoch::Problem::LOCAL_IMPROVEMENT, 0.9, true);
     greedy.resetFocus(0);
     greedy.run();
     auto result = greedy.getResultItems();
@@ -233,64 +248,11 @@ TEST_F(RobustnessGTest, testSimplStochDyn_LRIP_smallgraph) {
     EXPECT_EQ(result[1].v, 4);
 }
 
-TEST_F(RobustnessGTest, testSimplStochDyn_GDEL_smallgraph) {
+TEST_F(RobustnessGTest, testSimplStochJLT_GDEL_smallgraph) {
     Aux::Random::setSeed(1, true);
     Graph G = smallGraph();
 
-    SimplStochDyn greedy(G, 2, SimplStochDyn::Problem::GLOBAL_REDUCTION, 0.99);
-    greedy.run();
-    auto result = greedy.getResultItems();
-    EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 1);
-    EXPECT_EQ(result[0].v, 0);
-    EXPECT_EQ(result[1].u, 3);
-    EXPECT_EQ(result[1].v, 2);
-    EXPECT_NEAR(greedy.getResultValue(), 12.2, 0.1);
-}
-
-TEST_F(RobustnessGTest, testSimplStochDynJLT_GRIP_smallgraph) {
-    Aux::Random::setSeed(1, true);
-    Graph G = smallGraph();
-
-    SimplStochDyn greedy(G, 2, SimplStochDyn::Problem::GLOBAL_IMPROVEMENT, 0.99, true);
-    greedy.run();
-    auto result = greedy.getResultItems();
-    EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 1);
-    EXPECT_EQ(result[0].v, 5);
-    EXPECT_EQ(result[1].u, 0);
-    EXPECT_EQ(result[1].v, 3);
-}
-
-TEST_F(RobustnessGTest, testSimplStochDynJLT_LRIP_smallgraph) {
-    Aux::Random::setSeed(1, true);
-    Graph G = smallGraph();
-
-    SimplStochDyn greedy(G, 2, SimplStochDyn::Problem::LOCAL_IMPROVEMENT, 0.9, true);
-    greedy.resetFocus(0);
-    greedy.run();
-    auto result = greedy.getResultItems();
-    EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 0);
-    EXPECT_EQ(result[0].v, 4);
-    EXPECT_EQ(result[1].u, 0);
-    EXPECT_EQ(result[1].v, 5);
-
-    greedy.resetFocus(2);
-    greedy.run();
-    result = greedy.getResultItems();
-    EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 2);
-    EXPECT_EQ(result[0].v, 5);
-    EXPECT_EQ(result[1].u, 2);
-    EXPECT_EQ(result[1].v, 4);
-}
-
-TEST_F(RobustnessGTest, testSimplStochDynJLT_GDEL_smallgraph) {
-    Aux::Random::setSeed(1, true);
-    Graph G = smallGraph();
-
-    SimplStochDyn greedy(G, 2, SimplStochDyn::Problem::GLOBAL_REDUCTION, 0.99, true);
+    SimplStoch greedy(G, 2, SimplStoch::Problem::GLOBAL_REDUCTION, 0.99, true);
     greedy.run();
     auto result = greedy.getResultItems();
     EXPECT_EQ(result.size(), 2);

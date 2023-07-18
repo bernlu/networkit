@@ -8,40 +8,20 @@
 
 #include <networkit/robustness/ColStoch.hpp>
 
+#include <networkit/robustness/DynJLTLaplacianInverseSolver.hpp>
+#include <networkit/robustness/DynLazyLaplacianInverseSolver.hpp>
 #include <networkit/robustness/StochasticGreedy.hpp>
 
 namespace NetworKit {
-ColStoch::ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, bool useJLT,
-                   double solverEpsilon, double diagEpsilon, Metric metric, node focusNode)
-    : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode),
-      DynLapSolver(G, solverEpsilon, useJLT), G(G), epsilon(epsilon), apx(G, diagEpsilon) {}
-
-std::vector<Edge> ColStoch::buildCandidateSet() {
-    std::vector<Edge> items;
-    switch (robustnessProblem) {
-    case Problem::GLOBAL_IMPROVEMENT:
-        G.forNodePairs([&](node i, node j) {
-            if (!this->G.hasEdge(i, j))
-                items.push_back(Edge(i, j));
-        });
-        return items;
-    case Problem::LOCAL_IMPROVEMENT:
-        G.forNodes([&](node i) {
-            if (focusNode != i && !this->G.hasEdge(focusNode, i))
-                items.push_back(Edge(focusNode, i));
-        });
-        return items;
-    case Problem::GLOBAL_REDUCTION:
-        G.forEdges([&](node u, node v) { items.push_back(Edge(u, v)); });
-        return items;
-    }
-    assert(false
-           && "unreachable switch statement"); // every case is handled in the switch statement
-}
+ColStoch::ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon,
+                   bool useJLT, std::optional<double> solverEpsilon, Metric metric, node focusNode)
+    : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), epsilon(epsilon),
+      solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)), useJLT(useJLT),
+      apx(std::make_unique<DynApproxElectricalCloseness>(G, diagEpsilon)) {}
 
 count ColStoch::numberOfNodeCandidates() const {
     const auto n = G.numberOfNodes();
-    unsigned int s;
+    count s = 0;
     switch (robustnessProblem) {
     case Problem::GLOBAL_IMPROVEMENT:
     case Problem::GLOBAL_REDUCTION:
@@ -77,18 +57,24 @@ std::optional<GraphEvent> ColStoch::makeEvent(node u, node v) const {
 }
 
 void ColStoch::run() {
-    node forestCenter = none;
-    if (metric == Metric::FOREST) {
-        forestCenter = G.addNode();
-        G.forNodes([&](node i) {
-            if (i != forestCenter)
-                G.addEdge(i, forestCenter);
-        });
-    }
+    prepareGraph();
+
     const count n = G.numberOfNodes();
     result.clear();
     resultValue = 0;
-    setupSolver();
+
+    if (useJLT)
+        setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon);
+    else
+        setupSolver<DynLazyLaplacianInverseSolver>(solverEpsilon);
+
+    if (apxCopy)
+        apx = std::make_unique<DynApproxElectricalCloseness>(*apxCopy);
+    else {
+        apx->run();
+        if (robustnessProblem == Problem::LOCAL_IMPROVEMENT)
+            apxCopy = std::make_unique<DynApproxElectricalCloseness>(*apx);
+    }
 
     if (k + G.numberOfEdges() > (n * (n - 1) / 8 * 3)) { // 3/4 of the complete graph.
         this->hasRun = true;
@@ -119,7 +105,7 @@ void ColStoch::run() {
             // time, uniform distribution if it fails
             if (it < 2) {
                 G.forNodes([&](node u) {
-                    double val = apx.getDiagonal()[u];
+                    double val = apx->getDiagonal()[u];
                     if (val < min)
                         min = val;
                     if (val > max)
@@ -127,7 +113,7 @@ void ColStoch::run() {
                     nodeWeights[u] = val;
                 });
                 for (auto &v : nodeWeights) {
-                    double u;
+                    double u = 0;
                     switch (robustnessProblem) {
                     case Problem::GLOBAL_IMPROVEMENT:
                     case Problem::LOCAL_IMPROVEMENT:
@@ -171,7 +157,7 @@ void ColStoch::run() {
             }
             std::vector<node> nodesVec{nodes.begin(), nodes.end()};
 
-            computeColumns(nodesVec);
+            // computeColumns(nodesVec);	// this call is not required (?)
 
             // Determine best edge between nodes from node set
 
@@ -180,7 +166,7 @@ void ColStoch::run() {
                 if (robustnessProblem == Problem::LOCAL_IMPROVEMENT) {
                     const auto ev = makeEvent(u);
                     if (ev) {
-                        double gain = totalResistanceDifferenceApprox(ev.value());
+                        double gain = lapSolver->totalResistanceDifference(ev.value());
                         if (gain > bestGain) {
                             bestEdge = ev.value();
                             bestGain = gain;
@@ -191,7 +177,7 @@ void ColStoch::run() {
                         auto v = nodesVec[j];
                         const auto ev = makeEvent(u, v);
                         if (ev) {
-                            double gain = totalResistanceDifferenceApprox(ev.value());
+                            double gain = lapSolver->totalResistanceDifference(ev.value());
                             if (gain > bestGain) {
                                 bestEdge = ev.value();
                                 bestGain = gain;
@@ -207,17 +193,19 @@ void ColStoch::run() {
         resultValue += bestGain;
         auto u = bestEdge.u;
         auto v = bestEdge.v;
-        G.addEdge(u, v);
+        if (bestEdge.type == GraphEvent::EDGE_ADDITION)
+            G.addEdge(u, v);
+        else
+            G.removeEdge(u, v);
         result.push_back(Edge(u, v));
 
         if (round < k - 1) {
-            updateEdge(bestEdge);
-            apx.update(bestEdge);
+            lapSolver->update(bestEdge);
+            apx->update(bestEdge);
         }
     }
     // after run: remove forest center again
-    if (metric == Metric::FOREST)
-        G.removeNode(forestCenter);
+    restoreGraph();
 
     this->hasRun = true;
     // INFO("Computed columns: ", solver.getComputedColumnCount());

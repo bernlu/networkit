@@ -16,20 +16,21 @@
 
 namespace NetworKit {
 
-class ColStoch final : public RobustnessGreedy, DynLapSolver {
+class ColStoch final : public RobustnessGreedy {
 public:
-    ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, bool useJLT = false,
-             double solverEpsilon = 1e-6, double diagEpsilon = 10, Metric metric = Metric::none,
-             node focusNode = none);
+    ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon = 10,
+             bool useJLT = false, std::optional<double> solverEpsilon = {},
+             Metric metric = Metric::none, node focusNode = none);
 
     virtual void run() override;
 
 private:
-    Graph &G;
     const double epsilon;
-    DynApproxElectricalCloseness apx;
+    const double solverEpsilon;
+    const bool useJLT;
+    std::unique_ptr<DynApproxElectricalCloseness> apx;
+    std::unique_ptr<DynApproxElectricalCloseness> apxCopy;
 
-    std::vector<Edge> buildCandidateSet();
     count numberOfNodeCandidates() const;
     std::optional<GraphEvent> makeEvent(node u, node v = none) const;
 };

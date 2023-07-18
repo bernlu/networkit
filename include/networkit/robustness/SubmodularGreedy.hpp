@@ -95,27 +95,6 @@ void SubmodularGreedy<Item>::initializeRun() {
     }
 }
 
-// https://stackoverflow.com/questions/67705360/template-specialisation-on-substitution-failure/
-template <typename T, typename = void>
-struct is_debug_printable : std::false_type {};
-template <typename T>
-struct is_debug_printable<T, decltype(DEBUG(std::declval<T &>()), void())> : std::true_type {};
-template <typename T>
-static constexpr auto is_debug_printable_v = is_debug_printable<T>::value;
-
-template <class T>
-void debug_print_sg(T t) {
-    if constexpr (is_debug_printable_v<T>)
-        DEBUG(t);
-    else
-        DEBUG("()");
-}
-
-template <>
-inline void debug_print_sg<Edge>(Edge t) {
-    DEBUG("Edge=(", t.u, ", ", t.v, ")");
-}
-
 template <class Item>
 void SubmodularGreedy<Item>::run() {
     this->assureCallbacksSet();
@@ -140,7 +119,7 @@ void SubmodularGreedy<Item>::run() {
             }
 
             DEBUG(" INSPECTING candidate value = ", c.value, " lastupdated = ", c.lastUpdated);
-            debug_print_sg(c.item);
+            // debug_print_sg(c.item);
 
             if (c.lastUpdated == round)
                 break; // top updated entry found.
@@ -159,7 +138,7 @@ void SubmodularGreedy<Item>::run() {
             //     DEBUG(" SELECTED value = ", c.value, " of item = ", c.item);
             // else
             DEBUG(" SELECTED value = ", c.value, " picked item:");
-            debug_print_sg<Item>(c.item);
+            // debug_print_sg<Item>(c.item);
 
             this->pickedItemCallback(c.item);
             round++;

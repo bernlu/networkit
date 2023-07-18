@@ -103,16 +103,6 @@ void StochasticGreedy<Item>::initializeRun() {
     this->N = itemsWrapped.size();
 }
 
-template <class T>
-void debug_print_sg2(T) {
-    DEBUG("()");
-}
-
-template <>
-inline void debug_print_sg2<Edge>(Edge t) {
-    DEBUG("Edge=(", t.u, ", ", t.v, ")");
-}
-
 template <class Item>
 void StochasticGreedy<Item>::run() {
     this->assureCallbacksSet();
@@ -184,7 +174,6 @@ void StochasticGreedy<Item>::run() {
 
             DEBUG(" INSPECTING candidate value = ", c.value,
                   " lastupdated = ", c.lastUpdated.value());
-            debug_print_sg2(c.item);
 
             if (c.lastUpdated == round) {
                 break; // top updated entry found.
