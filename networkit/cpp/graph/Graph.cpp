@@ -447,6 +447,11 @@ void Graph::removeNode(node v) {
 
     exists[v] = false;
     n--;
+
+    if (v == z - 1) {
+        z--;
+        exists.pop_back();
+    }
 }
 
 void Graph::restoreNode(node v) {
