@@ -22,7 +22,7 @@ namespace NetworKit {
 
 class StGreedy final : public RobustnessGreedy {
 public:
-    StGreedy(Graph &G, count k, Problem robustnessProblem, Metric metric = Metric::none,
+    StGreedy(Graph &G, count k, Problem robustnessProblem, Metric metric = Metric::AUTOMATIC,
              node focusNode = none);
 
     virtual void run() override;

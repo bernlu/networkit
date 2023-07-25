@@ -1,36 +1,30 @@
 /*
- *  SimplStoch.cpp
+ *  SpecStoch.cpp
  *
  *  Created on: 27.06.2023
  *     Authors: Maria Predari <predarimaria@gmail.com>
  *              Lukas Berner <Lukas.Berner@hu-berlin.de>
  */
 
-#include <networkit/robustness/SimplStoch.hpp>
+#include <networkit/robustness/SpecStoch.hpp>
 
-#include <networkit/robustness/DynFullLaplacianInverseSolver.hpp>
-#include <networkit/robustness/DynJLTLaplacianInverseSolver.hpp>
+#include <networkit/robustness/DynSpectralLaplacianInverseSolver.hpp>
 #include <networkit/robustness/StochasticGreedy.hpp>
 
 namespace NetworKit {
-SimplStoch::SimplStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, bool useJLT,
-                       std::optional<double> solverEpsilon, Metric metric, node focusNode)
-    : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), useJLT(useJLT),
-      epsilon(epsilon),
-      solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)) {}
+SpecStoch::SpecStoch(Graph &G, count k, Problem robustnessProblem, double epsilon,
+                     count numberOfEigenpairs, Metric metric, node focusNode)
+    : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), epsilon(epsilon),
+      numberOfEigenpairs(numberOfEigenpairs) {}
 
-void SimplStoch::run() {
+void SpecStoch::run() {
     // Compute pseudoinverse of laplacian
     prepareGraph();
     result.clear();
     resultValue = 0;
 
     // setup solver or take copy
-    if (useJLT) {
-        G.indexEdges();
-        setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon);
-    } else
-        setupSolver<DynFullLaplacianInverseSolver>(solverEpsilon);
+    setupSolver<DynSpectralLaplacianInverseSolver>(numberOfEigenpairs);
 
     // candidates
     std::vector<Edge> items = buildCandidateSet();

@@ -15,6 +15,8 @@
 
 #include <networkit/robustness/RobustnessGreedy.hpp>
 
+#include <networkit/io/NetworkitBinaryReader.hpp>
+
 namespace NetworKit {
 
 class RobustnessGTest : public testing::Test {
@@ -120,6 +122,20 @@ TEST_F(RobustnessGTest, testStGreedy_GRIP_smallgraph) {
     EXPECT_EQ(result[1].u, 2);
     EXPECT_EQ(result[1].v, 4);
 }
+
+// TEST_F(RobustnessGTest, testInfpower_stGreedy) {
+//     NetworkitBinaryReader reader;
+//     auto g = reader.read(
+//         "/home/berneluk/Dokumente/Robustness/robustness-extend/instances/inf-power.nkb");
+//     StGreedy greedy(g, 5, StGreedy::Problem::GLOBAL_IMPROVEMENT);
+//     INFO("l 131");
+//     greedy.run();
+//     auto result = greedy.getResultItems();
+//     for (auto r : result) {
+//         std::cout << r.u << ", " << r.v << std::endl;
+//     }
+//     std::cout << "total: " << greedy.getResultValue() << std::endl;
+// }
 
 TEST_F(RobustnessGTest, testStGreedy_LRIP_smallgraph) {
     Graph G = smallGraph();

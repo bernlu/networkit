@@ -61,6 +61,7 @@ void DynFullLaplacianInverseSolver::run() {
 
         lamg.parallelSolve(rhss, solutions);
 
+        // TODO: change this to have the row access in the outer loop ?
         // Store the results
         for (index idx = 0; idx < solutions.size(); ++idx) {
             const node v = base + idx;
@@ -80,9 +81,10 @@ double DynFullLaplacianInverseSolver::totalResistanceDifference(const GraphEvent
 
     const node i = ev.u;
     const node j = ev.v;
-    const auto col_i = lpinv.column(i);
-    const auto col_j = lpinv.column(j);
-    double R_ij = col_i[i] + col_j[j] - 2 * col_i[j];
+    const auto col_i = lpinv.row(i); // lpinv is symmetric, Take row instead of column, because
+                                     // DenseMatrix is stored row-major
+    const auto col_j = lpinv.row(j);
+    const double R_ij = col_i[i] + col_j[j] - 2 * col_i[j];
     double w;
     if (ev.type == GraphEvent::EDGE_ADDITION)
         w = 1.0 / (1.0 + R_ij);
@@ -91,7 +93,7 @@ double DynFullLaplacianInverseSolver::totalResistanceDifference(const GraphEvent
     else
         throw std::logic_error(
             "Trace difference cannot be computed for events other than edge addition or deletion!");
-    auto norm = (col_i - col_j).length();
+    const auto norm = (col_i - col_j).length();
     return norm * norm * w * G.numberOfNodes();
 }
 
@@ -104,9 +106,9 @@ void DynFullLaplacianInverseSolver::update(GraphEvent ev) {
     if (ev.type == GraphEvent::EDGE_REMOVAL)
         assert(!G.hasEdge(ev.u, ev.v));
 
-    auto i = ev.u;
-    auto j = ev.v;
-    double R_ij = lpinv(i, i) + lpinv(j, j) - 2 * lpinv(i, j);
+    const auto i = ev.u;
+    const auto j = ev.v;
+    const double R_ij = lpinv(i, i) + lpinv(j, j) - 2 * lpinv(i, j);
 
     double w_negative;
     if (ev.type == GraphEvent::EDGE_ADDITION)
@@ -116,14 +118,14 @@ void DynFullLaplacianInverseSolver::update(GraphEvent ev) {
     else
         throw std::logic_error("update does not support events other than "
                                "edge addition or deletion!");
-    auto v = lpinv.column(i) - lpinv.column(j);
+    const auto v = lpinv.row(i) - lpinv.row(j);
 
     // #pragma omp parallel for
     const auto n = lpinv.numberOfRows();
     for (index i = 0; i < n; i++) {
-        auto updateVec = v[i] * w_negative * v;
+        const auto updateVec = v[i] * w_negative * v;
         for (index j = 0; j < n; j++) {
-            lpinv.setValue(j, i, lpinv(i, j) + updateVec[j]);
+            lpinv.setValue(j, i, lpinv(j, i) + updateVec[j]);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace NetworKit {
 class SimplStoch final : public RobustnessGreedy {
 public:
     SimplStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, bool useJLT = false,
-               std::optional<double> solverEpsilon = {}, Metric metric = Metric::none,
+               std::optional<double> solverEpsilon = {}, Metric metric = Metric::AUTOMATIC,
                node focusNode = none);
 
     virtual void run() override;

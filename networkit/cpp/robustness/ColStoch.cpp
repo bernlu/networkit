@@ -63,9 +63,10 @@ void ColStoch::run() {
     result.clear();
     resultValue = 0;
 
-    if (useJLT)
+    if (useJLT) {
+        G.indexEdges();
         setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon);
-    else
+    } else
         setupSolver<DynLazyLaplacianInverseSolver>(solverEpsilon);
 
     if (apxCopy)

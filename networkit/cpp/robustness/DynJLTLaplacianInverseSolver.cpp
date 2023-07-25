@@ -98,12 +98,12 @@ double DynJLTLaplacianInverseSolver::totalResistanceDifference(const GraphEvent 
 }
 
 double DynJLTLaplacianInverseSolver::effR(node u, node v) const {
-    const auto r = PBL.column(u) - PBL.column(v);
+    const auto r = PBL.row(u) - PBL.row(v);
     return Vector::innerProduct(r, r);
 }
 
 double DynJLTLaplacianInverseSolver::phiNormSquared(node u, node v) const {
-    const auto r = PL.column(u) - PL.column(v);
+    const auto r = PL.row(u) - PL.row(v);
     return Vector::innerProduct(r, r);
 }
 
@@ -148,6 +148,8 @@ void DynJLTLaplacianInverseSolver::computeIntermediateMatrices() {
             PBL.setValue(i, j, xs2[i][j]);
         }
     }
+    PL = PL.transpose();
+    PBL = PBL.transpose();
 }
 
 } // namespace NetworKit

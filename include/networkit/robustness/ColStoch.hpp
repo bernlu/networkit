@@ -20,7 +20,7 @@ class ColStoch final : public RobustnessGreedy {
 public:
     ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon = 10,
              bool useJLT = false, std::optional<double> solverEpsilon = {},
-             Metric metric = Metric::none, node focusNode = none);
+             Metric metric = Metric::AUTOMATIC, node focusNode = none);
 
     virtual void run() override;
 

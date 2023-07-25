@@ -7,3 +7,10 @@
  */
 
 #include <networkit/robustness/SubmodularGreedy.hpp>
+
+namespace NetworKit {
+std::ostream &operator<<(std::ostream &os, const Edge &E) {
+    os << "Edge(" << E.u << ", " << E.v << ")";
+    return os;
+}
+} // namespace NetworKit

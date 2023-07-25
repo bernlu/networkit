@@ -19,6 +19,9 @@
 #include <networkit/graph/Graph.hpp>
 #include <networkit/robustness/GreedyOptimizer.hpp>
 
+#include <networkit/auxiliary/Timer.hpp>
+#include <networkit/robustness/DynLaplacianInverseSolver.hpp>
+
 namespace NetworKit {
 
 // TODO: write a operator< for the case when Item is not comparable!
@@ -95,6 +98,8 @@ void SubmodularGreedy<Item>::initializeRun() {
     }
 }
 
+std::ostream &operator<<(std::ostream &os, const Edge &E);
+
 template <class Item>
 void SubmodularGreedy<Item>::run() {
     this->assureCallbacksSet();
@@ -118,13 +123,14 @@ void SubmodularGreedy<Item>::run() {
                 itemQueue.pop();
             }
 
-            DEBUG(" INSPECTING candidate value = ", c.value, " lastupdated = ", c.lastUpdated);
             // debug_print_sg(c.item);
 
             if (c.lastUpdated == round)
                 break; // top updated entry found.
             else {
                 c.value = this->gainFn(c.item);
+                DEBUG(" INSPECTING candidate (", c.item.u, ",", c.item.v, ") new value = ", c.value,
+                      " lastupdated = ", c.lastUpdated);
                 c.lastUpdated = round;
                 itemQueue.push(c);
             }
@@ -135,10 +141,7 @@ void SubmodularGreedy<Item>::run() {
 
             DEBUG(" >>> TotalGain = ", this->totalGain, " <<< ");
             // if constexpr (is_debug_printable_v<Item>)
-            //     DEBUG(" SELECTED value = ", c.value, " of item = ", c.item);
-            // else
-            DEBUG(" SELECTED value = ", c.value, " picked item:");
-            // debug_print_sg<Item>(c.item);
+            DEBUG(" SELECTED value = ", c.value, " of item = ", c.item);
 
             this->pickedItemCallback(c.item);
             round++;

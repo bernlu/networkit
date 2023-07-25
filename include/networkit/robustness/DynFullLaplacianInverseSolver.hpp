@@ -22,8 +22,8 @@ public:
     DynFullLaplacianInverseSolver(const Graph &G);
 
     void run() override;
-    void update(GraphEvent ev);
-    virtual double totalResistanceDifference(const GraphEvent &ev) const;
+    void update(GraphEvent ev) override;
+    virtual double totalResistanceDifference(const GraphEvent &ev) const override;
 
 private:
     DenseMatrix lpinv;

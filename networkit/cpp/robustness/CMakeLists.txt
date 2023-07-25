@@ -3,6 +3,7 @@ networkit_add_module(robustness
 	StochasticGreedy.cpp
 	StGreedy.cpp
 	SimplStoch.cpp
+	SpecStoch.cpp
 	RobustnessGreedy.cpp
 	ColStoch.cpp
 	DynLaplacianInverseSolver.cpp

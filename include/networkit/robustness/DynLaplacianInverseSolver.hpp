@@ -22,7 +22,6 @@ namespace NetworKit {
  */
 class DynLaplacianInverseSolver : public Algorithm, public DynAlgorithm {
 public:
-    DynLaplacianInverseSolver(const Graph &G) : G(G) {}
     // from Algorithm
     void run() override = 0;
 
@@ -37,6 +36,7 @@ public:
     virtual double totalResistanceDifference(const GraphEvent &ev) const = 0;
 
 protected:
+    DynLaplacianInverseSolver(const Graph &G) : G(G) {}
     const Graph &G;
 
     void assureUpdated(const GraphEvent &ev) const;

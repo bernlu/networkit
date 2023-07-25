@@ -16,7 +16,7 @@ namespace NetworKit {
 RobustnessGreedy::RobustnessGreedy(Graph &G, count k, Problem robustnessProblem, Metric metric,
                                    node focusNode)
     : G(G), k(k), robustnessProblem(robustnessProblem),
-      metric(metric == Metric::none ? defaultMetric(robustnessProblem) : metric),
+      metric(metric == Metric::AUTOMATIC ? defaultMetric(robustnessProblem) : metric),
       focusNode(focusNode) {}
 
 RobustnessGreedy::Metric RobustnessGreedy::defaultMetric(Problem problem) {
@@ -29,6 +29,11 @@ RobustnessGreedy::Metric RobustnessGreedy::defaultMetric(Problem problem) {
 void RobustnessGreedy::resetFocus(node focusNode) {
     this->focusNode = focusNode;
     this->hasRun = false;
+}
+
+double RobustnessGreedy::getResultValue() const {
+    assureFinished();
+    return resultValue;
 }
 
 std::vector<Edge> RobustnessGreedy::buildCandidateSet() const {

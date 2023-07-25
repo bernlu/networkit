@@ -321,7 +321,7 @@ if(NETWORKIT_PYTHON)
 	foreach (EXT base centrality clique coarsening community components correlation
 			 distance dynamics dynbase embedding engineering flow generators globals graph graphio
 			 graphtools helpers independentset linkprediction matching
-			 randomization reachability scd simulation sparsification stats
+			 randomization reachability robustness scd simulation sparsification stats
 			 structures traversal viz)
 
 		if(NOT EXISTS "${PROJECT_SOURCE_DIR}/networkit/${EXT}.cpp")

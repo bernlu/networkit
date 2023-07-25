@@ -20,18 +20,12 @@ namespace NetworKit {
 
 class RobustnessGreedy : public Algorithm {
 public:
-    enum class Problem { GLOBAL_IMPROVEMENT, LOCAL_IMPROVEMENT, GLOBAL_REDUCTION };
-    enum class Metric { RESISTANCE, FOREST, none };
-
-    RobustnessGreedy(Graph &G, count k, Problem robustnessProblem, Metric metric = Metric::none,
-                     node focusNode = none);
+    enum Problem { GLOBAL_IMPROVEMENT, LOCAL_IMPROVEMENT, GLOBAL_REDUCTION };
+    enum Metric { RESISTANCE, FOREST, AUTOMATIC };
 
     void resetFocus(node focusNode);
 
-    double getResultValue() const {
-        assureFinished();
-        return resultValue;
-    };
+    double getResultValue() const;
 
     const std::vector<Edge> &getResultItems() const {
         assureFinished();
@@ -39,6 +33,8 @@ public:
     }
 
 protected:
+    RobustnessGreedy(Graph &G, count k, Problem robustnessProblem,
+                     Metric metric = Metric::AUTOMATIC, node focusNode = none);
     Graph &G;
     const count k;
     const Problem robustnessProblem;
