@@ -35,6 +35,7 @@ count ColStoch::numberOfNodeCandidates() const {
         s = std::ceil((n - G.degree(focusNode)) / k * std::log(1.0 / epsilon)) + 1;
         break;
     }
+    INFO("computed number of node candidates: ", s, "for n=", n, " k=", k, "epsilon=", epsilon);
     return s;
 }
 
@@ -68,6 +69,7 @@ void ColStoch::run() {
         setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon);
     } else
         setupSolver<DynLazyLaplacianInverseSolver>(solverEpsilon);
+    INFO("ColStoch: solver setup done");
 
     if (apxCopy)
         apx = std::make_unique<DynApproxElectricalCloseness>(*apxCopy);
@@ -76,6 +78,7 @@ void ColStoch::run() {
         if (robustnessProblem == Problem::LOCAL_IMPROVEMENT)
             apxCopy = std::make_unique<DynApproxElectricalCloseness>(*apx);
     }
+    INFO("ColStoch: apx setup done");
 
     if (k + G.numberOfEdges() > (n * (n - 1) / 8 * 3)) { // 3/4 of the complete graph.
         this->hasRun = true;
@@ -86,12 +89,14 @@ void ColStoch::run() {
     }
 
     for (count round = 0; round < k; round++) {
+        INFO("ColStoch: main loop round ", round);
         double bestGain = -std::numeric_limits<double>::infinity();
         GraphEvent bestEdge;
 
         int it = 0;
 
         do {
+            INFO("ColStoch: starting node set collection");
             // Collect nodes set for current round
             std::set<node> nodes;
             const auto s = numberOfNodeCandidates();
@@ -131,6 +136,8 @@ void ColStoch::run() {
             }
             it++;
 
+            INFO("ColStoch: node weights computed");
+
             std::discrete_distribution<> distribution_nodes_heuristic(nodeWeights.begin(),
                                                                       nodeWeights.end());
 
@@ -157,6 +164,8 @@ void ColStoch::run() {
                 nodes.insert(randomNode);
             }
             std::vector<node> nodesVec{nodes.begin(), nodes.end()};
+
+            INFO("ColStoch: nodes vec sampled");
 
             // computeColumns(nodesVec);	// this call is not required (?)
 
@@ -187,8 +196,11 @@ void ColStoch::run() {
                     }
                 }
             }
+            INFO("ColStoch: edges inspected.");
 
         } while (bestGain == -std::numeric_limits<double>::infinity());
+
+        INFO("ColStoch: best edge found");
 
         // Accept edge
         resultValue += bestGain;
@@ -200,14 +212,18 @@ void ColStoch::run() {
             G.removeEdge(u, v);
         result.push_back(Edge(u, v));
 
+        INFO("ColStoch: edge accepted");
+
         if (round < k - 1) {
             lapSolver->update(bestEdge);
             apx->update(bestEdge);
         }
+
+        INFO("ColStoch: solver and apx updated");
     }
     // after run: remove forest center again
     restoreGraph();
-
+    INFO("ColStoch: main loop done");
     this->hasRun = true;
     // INFO("Computed columns: ", solver.getComputedColumnCount());
 }

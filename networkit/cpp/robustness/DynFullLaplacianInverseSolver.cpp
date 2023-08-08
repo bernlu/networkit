@@ -120,8 +120,8 @@ void DynFullLaplacianInverseSolver::update(GraphEvent ev) {
                                "edge addition or deletion!");
     const auto v = lpinv.row(i) - lpinv.row(j);
 
-    // #pragma omp parallel for
     const auto n = lpinv.numberOfRows();
+#pragma omp parallel for
     for (index i = 0; i < n; i++) {
         const auto updateVec = v[i] * w_negative * v;
         for (index j = 0; j < n; j++) {
