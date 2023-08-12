@@ -27,6 +27,7 @@ from .graphio import PartitionReader, PartitionWriter, EdgeListPartitionReader, 
 from .scd cimport _SelectiveCommunityDetector, SelectiveCommunityDetector
 
 from . import graph
+from .graphtools import GraphTools
 from .algebraic import laplacianEigenvectors
 from .centrality import CoreDecomposition
 from .coarsening import ParallelPartitionCoarsening
@@ -509,7 +510,7 @@ cdef class Modularity:
 
 	Modularity is a quality index for community detection.
 	It assigns a quality value in [-0.5, 1.0] to a partition of a graph which is higher for more modular networks and
-	partitions which better capture the modular structure. See also http://en.wikipedia.org/wiki/Modularity_(networks).
+	partitions which better capture the modular structure. See also http://en.wikipedia.org/wiki/Modularity_(networks) .
 
  	Notes
 	-----
@@ -1844,13 +1845,17 @@ def kCoreCommunityDetection(G, k, algo=None, inspect=True):
 	coreDec = CoreDecomposition(G)
 	coreDec.run()
 
-	cores = coreDec.cores()
-	try:
-		kCore = cores[k]
-	except IndexError:
+	cores = coreDec.scores()
+
+	kCore = []
+	partition = coreDec.getPartition()
+	for i in range(k, partition.numberOfSubsets() + 1):
+		kCore.extend(partition.getMembers(i))
+
+	if len(kCore) == 0:
 		raise RuntimeError("There is no core for the specified k")
 
-	C = graph.Subgraph().fromNodes(G, kCore)	# FIXME: node indices are not preserved
+	C = GraphTools.subgraphFromNodes(G, kCore)
 
 	#properties.overview(C)
 
