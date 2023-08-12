@@ -10,6 +10,7 @@ from libcpp.unordered_map cimport unordered_map
 from .helpers import stdstring
 
 import re
+import tempfile
 import os
 import logging
 import numpy
@@ -1027,6 +1028,7 @@ class Format(__AutoNumber):
 	- networkit.graphio.Format.METIS
 	- networkit.graphio.Format.NetworkitBinary
 	- networkit.graphio.Format.SNAP
+	- networkit.graphio.Format.MatrixMarket
 	
 	"""
 	SNAP = ()
@@ -1048,6 +1050,7 @@ class Format(__AutoNumber):
 	MAT = ()
 	ThrillBinary = ()
 	NetworkitBinary = ()
+	MatrixMarket = ()
 
 # reading
 
@@ -1083,7 +1086,8 @@ def getReader(fileformat, *kargs, **kwargs):
 		Format.GraphToolBinary:		GraphToolBinaryReader(),
 		Format.MAT:			MatReader(),
 		Format.ThrillBinary:		ThrillGraphBinaryReader(),
-		Format.NetworkitBinary:         NetworkitBinaryReader()
+		Format.NetworkitBinary:         NetworkitBinaryReader(),
+		Format.MatrixMarket: MatrixMarketGraphReader()
 	}
 
 	# special case for custom Edge Lists
@@ -1143,6 +1147,10 @@ def guessFileFormat(filepath: str) -> Format:
 		# KONECT - has comments with % sign, starts with % FORMAT WEIGHTS
 		if re.match(r'^%\s((asym)|(sym)|(bip))\s((unweighted)|(positive)|(posweighted)|(signed)|(multisigned)|(weighted)|(multiweighted)|(dynamic)|(multiposweighted))$', firstline.lower()):
 			return Format.KONECT
+		
+		# MatrixMarket - has specific first line
+		if re.match(r'%%MatrixMarket', firstline):
+			return Format.MatrixMarket
 
 	# if none match, read all lines of the file and guess the format out of METIS, SNAP, EdgeList variants
 	# types:
@@ -1210,7 +1218,7 @@ def guessFileFormat(filepath: str) -> Format:
 
 	# finally, guess type
 	guess = None
-	if commentPrefix:	# for edge list, expect a comment prefix
+	if commentPrefix == '#':	# for edge list, expect comment prefix '#' (otherwise, custom handling is required)
 		if minId == 0:	# could extend this to set the correct minId, but for now just pick one of the nk.Format enums
 			if separator == '\t':
 				guess = Format.EdgeListTabZero
@@ -1238,6 +1246,35 @@ def guessFileFormat(filepath: str) -> Format:
 	# if none match, raise error
 	raise IOError("format guessing failed: no type found")
 	
+class MatrixMarketGraphReader:
+	def read(self, path: str) -> Graph:
+		"""
+		readMatrixMarketGraph(path)
+
+		Reads graph from a matrix market file
+
+		Parameters
+		----------
+		path : str
+			file to read
+
+		Returns
+		-------
+		networkit.graph.Graph
+		"""
+		# read file by interpreting as edgelist, while ignoring the metadata line
+		
+		with tempfile.TemporaryDirectory() as tmpdirname:
+			tmpfile = f"{tmpdirname}/MatrixMarketToEdgeList.txt"
+			with open(tmpfile, 'w') as temp, open('input/chesapeake.mtx') as orig:
+				firstlinefound = False
+				for line in orig.readlines():
+					if not firstlinefound and not line.startswith('%'):	# add a comment sign to the metadata line
+						firstlinefound = True
+						temp.write('%')
+					temp.write(line)
+			
+			return readGraph(tmpfile, Format.EdgeList, ' ', 1, '%')
 
 def readGraph(path, fileformat=None, *kargs, **kwargs):
 	"""

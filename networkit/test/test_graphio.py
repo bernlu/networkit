@@ -72,7 +72,7 @@ class TestGEXFIO(unittest.TestCase):
 		G = nk.generators.ErdosRenyiGenerator(100, 0.1).generate()
 		someFailed = False
 
-		excluded_formats = set([nk.Format.KONECT, nk.Format.DOT, nk.Format.GraphViz, nk.Format.SNAP])
+		excluded_formats = set([nk.Format.KONECT, nk.Format.DOT, nk.Format.GraphViz, nk.Format.SNAP, nk.Format.MatrixMarket])
 
 		for format in nk.Format:
 			if format in excluded_formats:
@@ -102,12 +102,17 @@ class TestGEXFIO(unittest.TestCase):
 			("foodweb-baydry.konect", nk.Format.KONECT),
 			("foodweb-baydry.networkit", nk.Format.NetworkitBinary),
 			("jazz2_directed.gml", nk.Format.GML),
+			("chesapeake.mtx", nk.Format.MatrixMarket),
 		]
 
 		for (file, expected_result) in instances:
 			guess = nk.graphio.guessFileFormat(f"input/{file}")
 			self.assertEqual(guess, expected_result)
 
+	def testReadMatrixMarketGraph(self):
+		G = nk.readGraph('input/chesapeake.mtx')
+		self.assertEqual(G.numberOfNodes(), 39)
+		self.assertEqual(G.numberOfEdges(), 170)
 
 if __name__ == "__main__":
 	unittest.main()
