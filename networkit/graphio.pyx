@@ -1266,7 +1266,7 @@ class MatrixMarketGraphReader:
 		
 		with tempfile.TemporaryDirectory() as tmpdirname:
 			tmpfile = f"{tmpdirname}/MatrixMarketToEdgeList.txt"
-			with open(tmpfile, 'w') as temp, open('input/chesapeake.mtx') as orig:
+			with open(tmpfile, 'w') as temp, open(path) as orig:
 				firstlinefound = False
 				for line in orig.readlines():
 					if not firstlinefound and not line.startswith('%'):	# add a comment sign to the metadata line
