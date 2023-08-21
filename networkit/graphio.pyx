@@ -1149,7 +1149,7 @@ def guessFileFormat(filepath: str) -> Format:
 			return Format.KONECT
 		
 		# MatrixMarket - has specific first line
-		if re.match(r'%%MatrixMarket', firstline):
+		if re.match(r'%+MatrixMarket', firstline):
 			return Format.MatrixMarket
 
 	# if none match, read all lines of the file and guess the format out of METIS, SNAP, EdgeList variants
