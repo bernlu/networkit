@@ -48,6 +48,8 @@ void SimplStoch::run() {
         greedy.setPickedItemCallback([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
             G.removeEdge(ev.u, ev.v);
+            if (useJLT)
+                G.indexEdges(true);
             lapSolver->update(ev);
         });
     } else {

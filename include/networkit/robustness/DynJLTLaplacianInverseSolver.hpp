@@ -27,10 +27,8 @@ public:
     double totalResistanceDifference(const GraphEvent &ev) const;
 
 private:
-    const count n;
     const count l;
     const double tolerance;
-    count m;
     void computeIntermediateMatrices();
     double effR(node u, node v) const;
     double phiNormSquared(node u, node v) const;

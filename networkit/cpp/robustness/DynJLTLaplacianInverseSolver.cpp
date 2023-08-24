@@ -41,8 +41,8 @@ inline CSRMatrix nk_dense_to_csr(DenseMatrix dense) {
 DynJLTLaplacianInverseSolver::DynJLTLaplacianInverseSolver(const Graph &G, double tolerance,
                                                            count eqnPerRound, count roundsPerSolver,
                                                            count roundsPerColumn)
-    : DynLaplacianInverseSolver(G), n(G.numberOfNodes()), l(jltDimension(eqnPerRound, tolerance)),
-      tolerance(tolerance), solver(G, 0.0001, 2 * l + 2, roundsPerSolver, roundsPerColumn) {
+    : DynLaplacianInverseSolver(G), l(jltDimension(eqnPerRound, tolerance)), tolerance(tolerance),
+      solver(G, 0.0001, 2 * l + 2, roundsPerSolver, roundsPerColumn) {
     if (!G.hasEdgeIds())
         throw std::runtime_error(
             "Error: call Graph.indexEdges() before initializing DynJLTLaplacianInverseSolver!");
@@ -50,8 +50,6 @@ DynJLTLaplacianInverseSolver::DynJLTLaplacianInverseSolver(const Graph &G, doubl
 
 void DynJLTLaplacianInverseSolver::run() {
     assert(G.hasEdgeIds());
-
-    m = G.numberOfEdges();
 
     solver.run();
 
@@ -66,11 +64,7 @@ void DynJLTLaplacianInverseSolver::update(GraphEvent ev) {
     assureUpdated(ev);
 
     solver.update(ev);
-    if (ev.type == GraphEvent::EDGE_ADDITION)
-        m++;
-    else if (ev.type == GraphEvent::EDGE_REMOVAL)
-        m--;
-    else
+    if (ev.type != GraphEvent::EDGE_ADDITION && ev.type != GraphEvent::EDGE_REMOVAL)
         throw std::runtime_error(
             "Error: GraphEvents other than Edge addition and removal are not supported!");
 
@@ -94,7 +88,7 @@ double DynJLTLaplacianInverseSolver::totalResistanceDifference(const GraphEvent 
         throw std::logic_error(
             "totalResistanceDifference cannot be computed for events other than edge "
             "addition or deletion!");
-    return n * w * phiNormSq;
+    return G.numberOfNodes() * w * phiNormSq;
 }
 
 double DynJLTLaplacianInverseSolver::effR(node u, node v) const {
@@ -119,8 +113,10 @@ void DynJLTLaplacianInverseSolver::computeIntermediateMatrices() {
         return P;
     };
 
-    auto P_n = random_projection(l, n);
-    auto P_m = random_projection(l, m);
+    auto P_n = random_projection(l, G.numberOfNodes());
+    auto P_m = random_projection(l, G.numberOfEdges());
+
+    assert(G.numberOfEdges() == incidence.numberOfColumns());
 
     // Compute columns of P L^\dagger and P' B^T L^\dagger where B is the
     // incidence matrix of G We first compute the transposes of the targets. For
@@ -139,11 +135,11 @@ void DynJLTLaplacianInverseSolver::computeIntermediateMatrices() {
     auto xs1 = solver.parallelSolve(rhss1);
     auto xs2 = solver.parallelSolve(rhss2);
 
-    PL = DenseMatrix(l, n);
-    PBL = DenseMatrix(l, n);
+    PL = DenseMatrix(l, G.numberOfNodes());
+    PBL = DenseMatrix(l, G.numberOfNodes());
 
     for (count i = 0; i < l; i++) {
-        for (count j = 0; j < n; j++) {
+        for (count j = 0; j < G.numberOfNodes(); j++) {
             PL.setValue(i, j, xs1[i][j]);
             PBL.setValue(i, j, xs2[i][j]);
         }

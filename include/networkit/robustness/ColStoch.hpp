@@ -27,6 +27,7 @@ public:
 private:
     const double epsilon;
     const double solverEpsilon;
+    const double diagEpsilon;
     const bool useJLT;
     std::unique_ptr<DynApproxElectricalCloseness> apx;
     std::unique_ptr<DynApproxElectricalCloseness> apxCopy;

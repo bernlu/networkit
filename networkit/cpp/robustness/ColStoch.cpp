@@ -16,8 +16,8 @@ namespace NetworKit {
 ColStoch::ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon,
                    bool useJLT, std::optional<double> solverEpsilon, Metric metric, node focusNode)
     : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), epsilon(epsilon),
-      solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)), useJLT(useJLT),
-      apx(std::make_unique<DynApproxElectricalCloseness>(G, diagEpsilon)) {}
+      solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)),
+      diagEpsilon(diagEpsilon), useJLT(useJLT) {}
 
 count ColStoch::numberOfNodeCandidates() const {
     const auto n = G.numberOfNodes();
@@ -35,22 +35,22 @@ count ColStoch::numberOfNodeCandidates() const {
         s = std::ceil((n - G.degree(focusNode)) / k * std::log(1.0 / epsilon)) + 1;
         break;
     }
-    INFO("computed number of node candidates: ", s, "for n=", n, " k=", k, "epsilon=", epsilon);
+    INFO("computed number of node candidates: ", s, " for n=", n, " k=", k, " epsilon=", epsilon);
     return s;
 }
 
 std::optional<GraphEvent> ColStoch::makeEvent(node u, node v) const {
     switch (robustnessProblem) {
     case Problem::LOCAL_IMPROVEMENT:
-        if (G.hasEdge(focusNode, u))
+        if (!G.hasEdge(focusNode, u))
             return GraphEvent(GraphEvent::EDGE_ADDITION, focusNode, u);
         break;
     case Problem::GLOBAL_IMPROVEMENT:
-        if (G.hasEdge(u, v))
+        if (!G.hasEdge(u, v))
             return GraphEvent(GraphEvent::EDGE_ADDITION, u, v);
         break;
     case Problem::GLOBAL_REDUCTION:
-        if (!G.hasEdge(u, v))
+        if (G.hasEdge(u, v))
             return GraphEvent(GraphEvent::EDGE_REMOVAL, u, v);
         break;
     }
@@ -74,6 +74,8 @@ void ColStoch::run() {
     if (apxCopy)
         apx = std::make_unique<DynApproxElectricalCloseness>(*apxCopy);
     else {
+        if (!apx)
+            apx = std::make_unique<DynApproxElectricalCloseness>(G, diagEpsilon);
         apx->run();
         if (robustnessProblem == Problem::LOCAL_IMPROVEMENT)
             apxCopy = std::make_unique<DynApproxElectricalCloseness>(*apx);
@@ -167,7 +169,9 @@ void ColStoch::run() {
 
             INFO("ColStoch: nodes vec sampled");
 
-            // computeColumns(nodesVec);	// this call is not required (?)
+            if (!useJLT)
+                dynamic_cast<DynLazyLaplacianInverseSolver &>(*lapSolver)
+                    .computeColumns(nodesVec); // this call is not required (?)
 
             // Determine best edge between nodes from node set
 
@@ -200,7 +204,7 @@ void ColStoch::run() {
 
         } while (bestGain == -std::numeric_limits<double>::infinity());
 
-        INFO("ColStoch: best edge found");
+        INFO("ColStoch: best edge found: (", bestEdge.u, ", ", bestEdge.v, ")");
 
         // Accept edge
         resultValue += bestGain;
@@ -208,8 +212,11 @@ void ColStoch::run() {
         auto v = bestEdge.v;
         if (bestEdge.type == GraphEvent::EDGE_ADDITION)
             G.addEdge(u, v);
-        else
+        else {
             G.removeEdge(u, v);
+            if (useJLT)
+                G.indexEdges(true);
+        }
         result.push_back(Edge(u, v));
 
         INFO("ColStoch: edge accepted");
