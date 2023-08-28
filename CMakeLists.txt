@@ -140,7 +140,7 @@ find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 
 pkg_check_modules(PETSC_PKG REQUIRED IMPORTED_TARGET PETSc)
-pkg_check_modules(SLEPC_PKG REQUIRED IMPORTED_TARGET SLEPc)
+pkg_check_modules(SLEPC_PKG REQUIRED IMPORTED_TARGET slepc)
 
 message("SLEPC found: ${SLEPC_PKG_FOUND}")
 message("SLEPC include dirs: ${SLEPC_PKG_INCLUDE_DIRS}")
@@ -278,7 +278,7 @@ if(NETWORKIT_BUILD_CORE AND NETWORKIT_MONOLITH)
 	endif()
 
 	target_link_libraries(networkit PRIVATE OpenMP::OpenMP_CXX 
-					"${SLEPC_PKG_LIBRARIES}" PUBLIC tlx)
+					"${SLEPC_PKG_LINK_LIBRARIES}" PUBLIC tlx)
 
 	set_target_properties(networkit PROPERTIES
 			CXX_STANDARD ${NETWORKIT_CXX_STANDARD}
@@ -292,7 +292,7 @@ if(NETWORKIT_BUILD_CORE AND NETWORKIT_MONOLITH)
 
 	target_include_directories(networkit BEFORE PUBLIC "${PROJECT_SOURCE_DIR}/include")
 	target_include_directories(networkit PUBLIC "${PROJECT_SOURCE_DIR}/extlibs/ttmath/" 
-					"${SLEPC_PKG_INCLUDEDIR}" "${PETSC_PKG_INCLUDEDIR}")
+					"${SLEPC_PKG_INCLUDE_DIRS}" "${PETSC_PKG_INCLUDEDIR}")
 
 endif()
 
