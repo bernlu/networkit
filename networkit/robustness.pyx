@@ -311,3 +311,11 @@ cdef class DynFullLaplacianInverseSolver(DynLaplacianInverseSolver):
 	def __cinit__(self, Graph G):
 		self._this = new _DynFullLaplacianInverseSolver(G._this)
 
+cdef extern from "<networkit/robustness/DynLazyLaplacianInverseSolver.hpp>":
+	
+	cdef cppclass _DynLazyLaplacianInverseSolver "NetworKit::DynLazyLaplacianInverseSolver" (_Algorithm, _DynAlgorithm):
+		_DynLazyLaplacianInverseSolver(_Graph, double) except +
+
+cdef class DynLazyLaplacianInverseSolver(DynLaplacianInverseSolver):
+	def __cinit__(self, Graph G, double tolerance):
+		self._this = new _DynLazyLaplacianInverseSolver(G._this, tolerance)
