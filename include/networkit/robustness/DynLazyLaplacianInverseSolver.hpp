@@ -27,10 +27,12 @@ public:
     void run() override;
 
     double totalResistanceDifference(const GraphEvent &ev) const;
+    double totalForestDistanceDifference(const GraphEvent &ev) const override;
     void update(GraphEvent ev) override;
     void computeColumns(std::vector<node> nodes) const;
 
     std::vector<Vector> parallelSolve(std::vector<Vector> &rhss) const;
+    const Vector &getColumn(node u) const;
 
 private:
     const count n;
@@ -53,8 +55,6 @@ private:
     // If a round was last computed this many rounds ago or more, compute by
     // solving instead of updating.
     const count roundsPerColumn;
-
-    const Vector &getColumn(node u) const;
 };
 
 } // namespace NetworKit

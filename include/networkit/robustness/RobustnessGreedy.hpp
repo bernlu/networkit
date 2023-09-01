@@ -11,7 +11,7 @@
 #include <networkit/base/Algorithm.hpp>
 #include <networkit/graph/Graph.hpp>
 
-#include <networkit/robustness/DynFullLaplacianInverseSolver.hpp>
+#include <networkit/robustness/DynJLTLaplacianInverseSolver.hpp>
 #include <networkit/robustness/DynLaplacianInverseSolver.hpp>
 
 #include <optional>
@@ -52,14 +52,27 @@ protected:
     std::vector<Edge> buildCandidateSet() const;
 
     template <class Solver>
-    void setupSolver(double solverEpsilon) {
+    void setupSolver(double solverEpsilon, bool jltComputeForestLossCorrection = false) {
         if (lapSolverOriginal)
             lapSolver = std::make_unique<Solver>(static_cast<Solver &>(*lapSolverOriginal));
         else {
-            if constexpr (std::is_same_v<Solver, DynFullLaplacianInverseSolver>)
-                lapSolver = std::make_unique<Solver>(G);
+            if constexpr (std::is_same_v<Solver, DynJLTLaplacianInverseSolver>)
+                lapSolver =
+                    std::make_unique<Solver>(G, solverEpsilon, jltComputeForestLossCorrection);
             else
                 lapSolver = std::make_unique<Solver>(G, solverEpsilon);
+            lapSolver->run();
+            if (robustnessProblem == Problem::LOCAL_IMPROVEMENT)
+                lapSolverOriginal = std::make_unique<Solver>(static_cast<Solver &>(*lapSolver));
+        }
+    }
+
+    template <class Solver>
+    void setupSolver() {
+        if (lapSolverOriginal)
+            lapSolver = std::make_unique<Solver>(static_cast<Solver &>(*lapSolverOriginal));
+        else {
+            lapSolver = std::make_unique<Solver>(G);
             lapSolver->run();
             if (robustnessProblem == Problem::LOCAL_IMPROVEMENT)
                 lapSolverOriginal = std::make_unique<Solver>(static_cast<Solver &>(*lapSolver));

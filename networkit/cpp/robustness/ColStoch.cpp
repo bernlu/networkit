@@ -14,10 +14,11 @@
 
 namespace NetworKit {
 ColStoch::ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon,
-                   bool useJLT, std::optional<double> solverEpsilon, Metric metric, node focusNode)
+                   bool useJLT, bool jltLossCorrection, std::optional<double> solverEpsilon,
+                   Metric metric, node focusNode)
     : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), epsilon(epsilon),
       solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)),
-      diagEpsilon(diagEpsilon), useJLT(useJLT) {}
+      diagEpsilon(diagEpsilon), useJLT(useJLT), jltLossCorrection(jltLossCorrection) {}
 
 count ColStoch::numberOfNodeCandidates() const {
     const auto n = G.numberOfNodes();
@@ -66,7 +67,7 @@ void ColStoch::run() {
 
     if (useJLT) {
         G.indexEdges();
-        setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon);
+        setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon, jltLossCorrection);
     } else
         setupSolver<DynLazyLaplacianInverseSolver>(solverEpsilon);
     INFO("ColStoch: solver setup done");
@@ -180,7 +181,11 @@ void ColStoch::run() {
                 if (robustnessProblem == Problem::LOCAL_IMPROVEMENT) {
                     const auto ev = makeEvent(u);
                     if (ev) {
-                        double gain = lapSolver->totalResistanceDifference(ev.value());
+                        double gain = 0;
+                        if (metric == Metric::RESISTANCE)
+                            gain = lapSolver->totalResistanceDifference(ev.value());
+                        if (metric == Metric::FOREST)
+                            gain = lapSolver->totalForestDistanceDifference(ev.value());
                         if (gain > bestGain) {
                             bestEdge = ev.value();
                             bestGain = gain;
@@ -191,7 +196,11 @@ void ColStoch::run() {
                         auto v = nodesVec[j];
                         const auto ev = makeEvent(u, v);
                         if (ev) {
-                            double gain = lapSolver->totalResistanceDifference(ev.value());
+                            double gain = 0;
+                            if (metric == Metric::RESISTANCE)
+                                gain = lapSolver->totalResistanceDifference(ev.value());
+                            if (metric == Metric::FOREST)
+                                gain = lapSolver->totalForestDistanceDifference(ev.value());
                             if (gain > bestGain) {
                                 bestEdge = ev.value();
                                 bestGain = gain;

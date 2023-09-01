@@ -24,6 +24,7 @@ public:
     void run() override;
     void update(GraphEvent ev) override;
     virtual double totalResistanceDifference(const GraphEvent &ev) const override;
+    virtual double totalForestDistanceDifference(const GraphEvent &ev) const override;
 
 private:
     DenseMatrix lpinv;

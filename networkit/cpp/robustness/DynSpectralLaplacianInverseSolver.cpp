@@ -310,6 +310,12 @@ double DynSpectralLaplacianInverseSolver::totalResistanceDifference(const GraphE
     return SpectralApproximationGainDifference2(ev.u, ev.v) * static_cast<double>(n);
 }
 
+double
+DynSpectralLaplacianInverseSolver::totalForestDistanceDifference(const GraphEvent &ev) const {
+    throw std::logic_error("totalForestDistanceDifference for spectral not implemented");
+    return SpectralApproximationGainDifference2(ev.u, ev.v) * static_cast<double>(n);
+}
+
 void DynSpectralLaplacianInverseSolver::update(GraphEvent ev) {
     if (ev.type == GraphEvent::EDGE_ADDITION)
         addEdge(ev.u, ev.v);

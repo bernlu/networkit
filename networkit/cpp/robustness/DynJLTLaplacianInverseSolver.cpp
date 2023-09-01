@@ -39,9 +39,11 @@ inline CSRMatrix nk_dense_to_csr(DenseMatrix dense) {
 }
 
 DynJLTLaplacianInverseSolver::DynJLTLaplacianInverseSolver(const Graph &G, double tolerance,
+                                                           bool computeForestLossCorrection,
                                                            count eqnPerRound, count roundsPerSolver,
                                                            count roundsPerColumn)
     : DynLaplacianInverseSolver(G), l(jltDimension(eqnPerRound, tolerance)), tolerance(tolerance),
+      computeForestLossCorrection(computeForestLossCorrection),
       solver(G, 0.0001, 2 * l + 2, roundsPerSolver, roundsPerColumn) {
     if (!G.hasEdgeIds())
         throw std::runtime_error(
@@ -89,6 +91,32 @@ double DynJLTLaplacianInverseSolver::totalResistanceDifference(const GraphEvent 
             "totalResistanceDifference cannot be computed for events other than edge "
             "addition or deletion!");
     return G.numberOfNodes() * w * phiNormSq;
+}
+
+double DynJLTLaplacianInverseSolver::totalForestDistanceDifference(const GraphEvent &ev) const {
+    assureFinished();
+
+    const auto R = effR(ev.u, ev.v);
+    const auto phiNormSq = phiNormSquared(ev.u, ev.v);
+
+    double w;
+    if (ev.type == GraphEvent::EDGE_ADDITION)
+        w = 1.0 / (1.0 + R);
+    else if (ev.type == GraphEvent::EDGE_REMOVAL)
+        w = 1.0 / (1.0 - R);
+    else
+        throw std::logic_error(
+            "totalResistanceDifference cannot be computed for events other than edge "
+            "addition or deletion!");
+    const auto approx = (G.numberOfNodes() - 1) * w * phiNormSq;
+
+    if (computeForestLossCorrection) {
+        const auto col_forest = solver.getColumn(G.numberOfNodes() - 1);
+        const auto lastrowdiff = (col_forest[ev.u] - col_forest[ev.v]);
+        const auto correction = G.numberOfNodes() * w * lastrowdiff * lastrowdiff;
+        return approx - correction;
+    } else
+        return approx;
 }
 
 double DynJLTLaplacianInverseSolver::effR(node u, node v) const {

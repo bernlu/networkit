@@ -97,6 +97,29 @@ double DynFullLaplacianInverseSolver::totalResistanceDifference(const GraphEvent
     return norm * norm * w * G.numberOfNodes();
 }
 
+double DynFullLaplacianInverseSolver::totalForestDistanceDifference(const GraphEvent &ev) const {
+    assureFinished();
+
+    const node i = ev.u;
+    const node j = ev.v;
+    const auto col_i = lpinv.row(i); // lpinv is symmetric, Take row instead of column, because
+                                     // DenseMatrix is stored row-major
+    const auto col_j = lpinv.row(j);
+    const double R_ij = col_i[i] + col_j[j] - 2 * col_i[j];
+    double w;
+    if (ev.type == GraphEvent::EDGE_ADDITION)
+        w = 1.0 / (1.0 + R_ij);
+    else if (ev.type == GraphEvent::EDGE_REMOVAL)
+        w = 1.0 / (1.0 - R_ij);
+    else
+        throw std::logic_error(
+            "Trace difference cannot be computed for events other than edge addition or deletion!");
+    const auto norm = (col_i - col_j).length();
+    const auto lastrowdiff = (col_i[G.numberOfNodes() - 1] - col_j[G.numberOfNodes() - 1]);
+    return norm * norm * w * (G.numberOfNodes() - 1)
+           - G.numberOfNodes() * w * lastrowdiff * lastrowdiff;
+}
+
 void DynFullLaplacianInverseSolver::update(GraphEvent ev) {
     assureFinished();
     assureUpdated(ev);

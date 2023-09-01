@@ -19,16 +19,19 @@ namespace NetworKit {
 
 class DynJLTLaplacianInverseSolver : public DynLaplacianInverseSolver {
 public:
-    DynJLTLaplacianInverseSolver(const Graph &G, double tolerance, count eqnPerRound = 200,
+    DynJLTLaplacianInverseSolver(const Graph &G, double tolerance,
+                                 bool computeForestLossCorrection = true, count eqnPerRound = 200,
                                  count roundsPerSolver = 10, count roundsPerColumn = 25);
 
     void run() override;
     void update(GraphEvent) override;
     double totalResistanceDifference(const GraphEvent &ev) const;
+    double totalForestDistanceDifference(const GraphEvent &ev) const override;
 
 private:
     const count l;
     const double tolerance;
+    const bool computeForestLossCorrection;
     void computeIntermediateMatrices();
     double effR(node u, node v) const;
     double phiNormSquared(node u, node v) const;

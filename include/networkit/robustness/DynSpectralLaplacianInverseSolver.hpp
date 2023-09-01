@@ -60,6 +60,7 @@ public:
     void update_eigensolver();
 
     double totalResistanceDifference(const GraphEvent &ev) const;
+    double totalForestDistanceDifference(const GraphEvent &ev) const override;
     void update(GraphEvent ev) override;
     void run() override;
 

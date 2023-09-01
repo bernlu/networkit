@@ -147,7 +147,7 @@ cdef class StGreedy(RobustnessGreedy):
 
 cdef extern from "<networkit/robustness/SimplStoch.hpp>":
 	cdef cppclass _SimplStoch "NetworKit::SimplStoch" (_RobustnessGreedy):
-		_SimplStoch(_Graph, count, _Problem, double, bool_t, optional[double], _Metric, node) except +
+		_SimplStoch(_Graph, count, _Problem, double, bool_t, bool_t, optional[double], _Metric, node) except +
 
 cdef class SimplStoch(RobustnessGreedy):
 	""" 
@@ -186,16 +186,16 @@ cdef class SimplStoch(RobustnessGreedy):
 	focusNode : node, optional
 		Node to which all edges have to be adjacent. Only used for the LOCAL_IMPROVEMENT problem type.
 	"""
-	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, useJLT: bool = False, solverEpsilon: Optional[float] = None, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
+	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, useJLT: bool = False, jltLossCorrection:bool = True, solverEpsilon: Optional[float] = None, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
 		cdef optional[double] _solverEpsilon
 		if solverEpsilon is not None:
 			_solverEpsilon = make_optional[double](solverEpsilon)
-		self._this = new _SimplStoch(G._this, k, robustnessProblem, epsilon, useJLT, _solverEpsilon, metric, focusNode)
+		self._this = new _SimplStoch(G._this, k, robustnessProblem, epsilon, useJLT, jltLossCorrection, _solverEpsilon, metric, focusNode)
 
 
 cdef extern from "<networkit/robustness/ColStoch.hpp>":
 	cdef cppclass _ColStoch "NetworKit::ColStoch" (_RobustnessGreedy):
-		_ColStoch(_Graph, count, _Problem, double, double, bool_t, optional[double], _Metric, node) except +
+		_ColStoch(_Graph, count, _Problem, double, double, bool_t, bool_t, optional[double], _Metric, node) except +
 
 cdef class ColStoch(RobustnessGreedy):
 	""" 
@@ -237,11 +237,11 @@ cdef class ColStoch(RobustnessGreedy):
 	focusNode : node, optional
 		Node to which all edges have to be adjacent. Only used for the LOCAL_IMPROVEMENT problem type.
 	"""
-	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, diagEpsilon: float = 10, useJLT: bool = False, solverEpsilon: Optional[float] = None, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
+	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, diagEpsilon: float = 10, useJLT: bool = False, jltLossCorrection: bool = True, solverEpsilon: Optional[float] = None, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
 		cdef optional[double] _solverEpsilon
 		if solverEpsilon is not None:
 			_solverEpsilon = make_optional[double](solverEpsilon)
-		self._this = new _ColStoch(G._this, k, robustnessProblem, epsilon, diagEpsilon, useJLT, _solverEpsilon, metric, focusNode)
+		self._this = new _ColStoch(G._this, k, robustnessProblem, epsilon, diagEpsilon, useJLT, jltLossCorrection, _solverEpsilon, metric, focusNode)
 
 
 cdef extern from "<networkit/robustness/SpecStoch.hpp>":
@@ -293,6 +293,7 @@ cdef extern from "<networkit/robustness/DynLaplacianInverseSolver.hpp>":
 	
 	cdef cppclass _DynLaplacianInverseSolver "NetworKit::DynLaplacianInverseSolver" (_Algorithm, _DynAlgorithm):
 		double totalResistanceDifference(_GraphEvent) except +
+		double totalForestDistanceDifference(_GraphEvent) except +
 
 cdef class DynLaplacianInverseSolver(Algorithm, DynAlgorithm):
 	def __init__(self, *args, **kwargs):
@@ -300,6 +301,8 @@ cdef class DynLaplacianInverseSolver(Algorithm, DynAlgorithm):
 			raise RuntimeError("Error, you may not use RobustnessGreedy directly, use a sub-class instead")
 	def totalResistanceDifference(self, ev: GraphEvent) -> float:
 		return (<_DynLaplacianInverseSolver*>(self._this)).totalResistanceDifference(_GraphEvent(ev.type, ev.u, ev.v, ev.w))
+	def totalForestDistanceDifference(self, ev: GraphEvent) -> float:
+		return (<_DynLaplacianInverseSolver*>(self._this)).totalForestDistanceDifference(_GraphEvent(ev.type, ev.u, ev.v, ev.w))
 
 
 cdef extern from "<networkit/robustness/DynFullLaplacianInverseSolver.hpp>":

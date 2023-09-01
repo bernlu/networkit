@@ -36,7 +36,11 @@ void SpecStoch::run() {
     if (robustnessProblem == Problem::GLOBAL_REDUCTION) {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
-            auto gain = lapSolver->totalResistanceDifference(ev);
+            double gain = 0;
+            if (metric == Metric::RESISTANCE)
+                gain = lapSolver->totalResistanceDifference(ev);
+            if (metric == Metric::FOREST)
+                gain = lapSolver->totalForestDistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
@@ -47,7 +51,11 @@ void SpecStoch::run() {
     } else {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_ADDITION, e.u, e.v);
-            auto gain = lapSolver->totalResistanceDifference(ev);
+            double gain = 0;
+            if (metric == Metric::RESISTANCE)
+                gain = lapSolver->totalResistanceDifference(ev);
+            if (metric == Metric::FOREST)
+                gain = lapSolver->totalForestDistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {

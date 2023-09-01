@@ -14,9 +14,10 @@
 
 namespace NetworKit {
 SimplStoch::SimplStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, bool useJLT,
-                       std::optional<double> solverEpsilon, Metric metric, node focusNode)
+                       bool jltLossCorrection, std::optional<double> solverEpsilon, Metric metric,
+                       node focusNode)
     : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), useJLT(useJLT),
-      epsilon(epsilon),
+      jltLossCorrection(jltLossCorrection), epsilon(epsilon),
       solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)) {}
 
 void SimplStoch::run() {
@@ -28,9 +29,9 @@ void SimplStoch::run() {
     // setup solver or take copy
     if (useJLT) {
         G.indexEdges();
-        setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon);
+        setupSolver<DynJLTLaplacianInverseSolver>(solverEpsilon, jltLossCorrection);
     } else
-        setupSolver<DynFullLaplacianInverseSolver>(solverEpsilon);
+        setupSolver<DynFullLaplacianInverseSolver>();
 
     // candidates
     std::vector<Edge> items = buildCandidateSet();
@@ -42,7 +43,11 @@ void SimplStoch::run() {
     if (robustnessProblem == Problem::GLOBAL_REDUCTION) {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
-            auto gain = lapSolver->totalResistanceDifference(ev);
+            double gain = 0;
+            if (metric == Metric::RESISTANCE)
+                gain = lapSolver->totalResistanceDifference(ev);
+            if (metric == Metric::FOREST)
+                gain = lapSolver->totalForestDistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
@@ -55,7 +60,11 @@ void SimplStoch::run() {
     } else {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_ADDITION, e.u, e.v);
-            auto gain = lapSolver->totalResistanceDifference(ev);
+            double gain = 0;
+            if (metric == Metric::RESISTANCE)
+                gain = lapSolver->totalResistanceDifference(ev);
+            if (metric == Metric::FOREST)
+                gain = lapSolver->totalForestDistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {

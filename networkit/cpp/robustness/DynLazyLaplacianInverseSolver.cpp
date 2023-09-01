@@ -161,6 +161,31 @@ double DynLazyLaplacianInverseSolver::totalResistanceDifference(const GraphEvent
     return norm * norm * w * col_i.getDimension();
 }
 
+double DynLazyLaplacianInverseSolver::totalForestDistanceDifference(const GraphEvent &ev) const {
+    assureFinished();
+
+    const node i = ev.u;
+    const node j = ev.v;
+
+    const auto col_i = getColumn(i);
+    const auto col_j = getColumn(j);
+    const double R_ij = col_i[i] + col_j[j] - 2 * col_i[j];
+    double w;
+    if (ev.type == GraphEvent::EDGE_ADDITION)
+        w = 1.0 / (1.0 + R_ij);
+    else if (ev.type == GraphEvent::EDGE_REMOVAL)
+        w = 1.0 / (1.0 - R_ij);
+    else
+        throw std::logic_error(
+            "totalResistanceDifference cannot be computed for events other than edge "
+            "addition or deletion!");
+    const auto norm = (col_i - col_j).length();
+    return norm * norm * w * col_i.getDimension();
+    const auto lastrowdiff = (col_i[G.numberOfNodes() - 1] - col_j[G.numberOfNodes() - 1]);
+    return norm * norm * w * (G.numberOfNodes() - 1)
+           - G.numberOfNodes() * w * lastrowdiff * lastrowdiff;
+}
+
 std::vector<Vector> DynLazyLaplacianInverseSolver::parallelSolve(std::vector<Vector> &rhss) const {
     auto size = rhss.size();
     std::vector<Vector> xs(size, Vector(n));

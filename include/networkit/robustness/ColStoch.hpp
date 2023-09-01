@@ -19,8 +19,9 @@ namespace NetworKit {
 class ColStoch final : public RobustnessGreedy {
 public:
     ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon = 10,
-             bool useJLT = false, std::optional<double> solverEpsilon = {},
-             Metric metric = Metric::AUTOMATIC, node focusNode = none);
+             bool useJLT = false, bool jltLossCorrection = true,
+             std::optional<double> solverEpsilon = {}, Metric metric = Metric::AUTOMATIC,
+             node focusNode = none);
 
     virtual void run() override;
 
@@ -29,6 +30,7 @@ private:
     const double solverEpsilon;
     const double diagEpsilon;
     const bool useJLT;
+    const bool jltLossCorrection;
     std::unique_ptr<DynApproxElectricalCloseness> apx;
     std::unique_ptr<DynApproxElectricalCloseness> apxCopy;
 

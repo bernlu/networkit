@@ -24,7 +24,7 @@ void StGreedy::run() {
     resultValue = 0;
 
     // setup solver
-    setupSolver<DynFullLaplacianInverseSolver>(0); // unused parameter for full lpinv
+    setupSolver<DynFullLaplacianInverseSolver>();
 
     // candidates
     std::vector<Edge> items = buildCandidateSet();
@@ -34,7 +34,11 @@ void StGreedy::run() {
     if (robustnessProblem == Problem::GLOBAL_REDUCTION) {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
-            auto gain = lapSolver->totalResistanceDifference(ev);
+            double gain = 0;
+            if (metric == Metric::RESISTANCE)
+                gain = lapSolver->totalResistanceDifference(ev);
+            if (metric == Metric::FOREST)
+                gain = lapSolver->totalForestDistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
@@ -45,7 +49,11 @@ void StGreedy::run() {
     } else {
         greedy.setGainFunction([&](const Edge &e) {
             GraphEvent ev(GraphEvent::EDGE_ADDITION, e.u, e.v);
-            auto gain = lapSolver->totalResistanceDifference(ev);
+            double gain = 0;
+            if (metric == Metric::RESISTANCE)
+                gain = lapSolver->totalResistanceDifference(ev);
+            if (metric == Metric::FOREST)
+                gain = lapSolver->totalForestDistanceDifference(ev);
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {

@@ -34,6 +34,7 @@ public:
 
     // specific
     virtual double totalResistanceDifference(const GraphEvent &ev) const = 0;
+    virtual double totalForestDistanceDifference(const GraphEvent &ev) const = 0;
 
 protected:
     DynLaplacianInverseSolver(const Graph &G) : G(G) {}
