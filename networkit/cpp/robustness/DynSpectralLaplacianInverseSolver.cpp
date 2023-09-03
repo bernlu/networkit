@@ -312,8 +312,54 @@ double DynSpectralLaplacianInverseSolver::totalResistanceDifference(const GraphE
 
 double
 DynSpectralLaplacianInverseSolver::totalForestDistanceDifference(const GraphEvent &ev) const {
-    throw std::logic_error("totalForestDistanceDifference for spectral not implemented");
-    return SpectralApproximationGainDifference2(ev.u, ev.v) * static_cast<double>(n);
+    // setup: get some values and give them reasonable names
+    double lambda_n = e_values[nconv];
+    double lambda_c = e_values[nconv - 1];
+
+    node a = ev.u;
+    node b = ev.v;
+
+    // get ith eigenvector, value at index j
+    auto u = [&](int i, int j) { return *(e_vectors + j * c + i); };
+
+    double biharmonic_up_sum = 0.0, resistance_up_sum = 0.0, biharmonic_low_sum = 0.0,
+           resistance_low_sum = 0.0;
+    double lambda_n_sq = lambda_n * lambda_n;
+    double lambda_c_sq = lambda_c * lambda_c;
+
+    double correction_up_sum = 0;
+    double correction_low_sum = 0;
+
+    // compute spectral approximations
+    for (int i = 0; i < nconv; i++) {
+        double u_ia = u(i, a);
+        double u_ib = u(i, b);
+        double u_icenter = u(i, n); // u[u*]
+        double sq_diff = (u_ia - u_ib) * (u_ia - u_ib);
+        double lambda_i = e_values[i];
+
+        biharmonic_low_sum += (1.0 / (lambda_i * lambda_i) - 1.0 / lambda_n_sq) * sq_diff;
+        resistance_up_sum += (1.0 / lambda_i - 1.0 / lambda_c) * sq_diff;
+
+        biharmonic_up_sum += (1.0 / (lambda_i * lambda_i) - 1.0 / lambda_c_sq) * sq_diff;
+        resistance_low_sum += (1.0 / lambda_i - 1.0 / lambda_n) * sq_diff;
+
+        correction_up_sum += (1.0 / lambda_i - 1.0 / lambda_c) * u_icenter * (u_ia - u_ib);
+        correction_up_sum += (1.0 / lambda_i - 1.0 / lambda_n) * u_icenter * (u_ia - u_ib);
+    }
+
+    double biharmonic_mean =
+        (biharmonic_up_sum + biharmonic_low_sum + 2.0 / lambda_c_sq + 2.0 / lambda_n_sq) / 2.0;
+    double resistance_mean =
+        (resistance_up_sum + resistance_low_sum + 2.0 / e_values[nconv] + 2.0 / e_values[nconv - 1])
+        / 2.0;
+    // this is the sum in the correction term (second term of the overall loss formula), without the
+    // square
+    double correction_mean = (correction_up_sum + correction_low_sum) / 2.0;
+
+    assert(ev.type == GraphEvent::EDGE_REMOVED);
+    return (n - 1) * (1 - resistance_mean) * biharmonic_mean
+           - n * (1 - resistance_mean) * correction_mean * correction_mean;
 }
 
 void DynSpectralLaplacianInverseSolver::update(GraphEvent ev) {
