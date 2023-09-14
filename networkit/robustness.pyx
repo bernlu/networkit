@@ -45,6 +45,13 @@ cdef extern from "<networkit/robustness/RobustnessGreedy.hpp>":
 		double getResultValue() except +
 		vector[Edge] getResultItems() except +
 
+
+cdef extern from "<networkit/robustness/ColStoch.hpp>" namespace "NetworKit::ColStoch":
+	cdef enum _SamplingVariant "NetworKit::ColStoch::SamplingVariant":
+		MIN_DIAG,
+		MAX_DIAG,
+		UNIFORM
+
 class RobustnessProblem:
 		GLOBAL_IMPROVEMENT = _Problem.GLOBAL_IMPROVEMENT
 		LOCAL_IMPROVEMENT = _Problem.LOCAL_IMPROVEMENT
@@ -54,6 +61,11 @@ class RobustnessMetric:
 	RESISTANCE = _Metric.RESISTANCE
 	FOREST = _Metric.FOREST
 	AUTOMATIC = _Metric.AUTOMATIC
+
+class SamplingVariant:
+	MIN_DIAG = _SamplingVariant.MIN_DIAG
+	MAX_DIAG = _SamplingVariant.MAX_DIAG
+	UNIFORM = _SamplingVariant.UNIFORM
 
 cdef class RobustnessGreedy(Algorithm):
 	""" 
@@ -109,6 +121,7 @@ cdef class RobustnessGreedy(Algorithm):
 cdef extern from "<networkit/robustness/StGreedy.hpp>":
 	cdef cppclass _StGreedy "NetworKit::StGreedy" (_RobustnessGreedy):
 		_StGreedy(_Graph, count, _Problem, _Metric, node) except +
+		void testLAMG(bool_t) except +
 
 cdef class StGreedy(RobustnessGreedy):
 	""" 
@@ -143,6 +156,9 @@ cdef class StGreedy(RobustnessGreedy):
 
 	def __cinit__(self, Graph G, k, robustnessProblem, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
 		self._this = new _StGreedy(G._this, k, robustnessProblem, metric, focusNode)
+
+	def testLamg(self, forest: bool):
+		(<_StGreedy*>(self._this)).testLAMG(forest)
 
 
 cdef extern from "<networkit/robustness/SimplStoch.hpp>":
@@ -195,7 +211,7 @@ cdef class SimplStoch(RobustnessGreedy):
 
 cdef extern from "<networkit/robustness/ColStoch.hpp>":
 	cdef cppclass _ColStoch "NetworKit::ColStoch" (_RobustnessGreedy):
-		_ColStoch(_Graph, count, _Problem, double, double, bool_t, bool_t, optional[double], _Metric, node) except +
+		_ColStoch(_Graph, count, _Problem, double, double, bool_t, bool_t, _SamplingVariant, optional[double], _Metric, node) except +
 
 cdef class ColStoch(RobustnessGreedy):
 	""" 
@@ -237,11 +253,11 @@ cdef class ColStoch(RobustnessGreedy):
 	focusNode : node, optional
 		Node to which all edges have to be adjacent. Only used for the LOCAL_IMPROVEMENT problem type.
 	"""
-	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, diagEpsilon: float = 10, useJLT: bool = False, jltLossCorrection: bool = True, solverEpsilon: Optional[float] = None, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
+	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, diagEpsilon: float = 10, useJLT: bool = False, jltLossCorrection: bool = True, samplingVariant: SamplingVariant = SamplingVariant.MIN_DIAG, solverEpsilon: Optional[float] = None, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
 		cdef optional[double] _solverEpsilon
 		if solverEpsilon is not None:
 			_solverEpsilon = make_optional[double](solverEpsilon)
-		self._this = new _ColStoch(G._this, k, robustnessProblem, epsilon, diagEpsilon, useJLT, jltLossCorrection, _solverEpsilon, metric, focusNode)
+		self._this = new _ColStoch(G._this, k, robustnessProblem, epsilon, diagEpsilon, useJLT, jltLossCorrection, samplingVariant, _solverEpsilon, metric, focusNode)
 
 
 cdef extern from "<networkit/robustness/SpecStoch.hpp>":

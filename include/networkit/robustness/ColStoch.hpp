@@ -18,10 +18,11 @@ namespace NetworKit {
 
 class ColStoch final : public RobustnessGreedy {
 public:
+    enum SamplingVariant { MIN_DIAG, MAX_DIAG, UNIFORM };
     ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon = 10,
              bool useJLT = false, bool jltLossCorrection = true,
-             std::optional<double> solverEpsilon = {}, Metric metric = Metric::AUTOMATIC,
-             node focusNode = none);
+             SamplingVariant samplingVariant = MIN_DIAG, std::optional<double> solverEpsilon = {},
+             Metric metric = Metric::AUTOMATIC, node focusNode = none);
 
     virtual void run() override;
 
@@ -31,6 +32,7 @@ private:
     const double diagEpsilon;
     const bool useJLT;
     const bool jltLossCorrection;
+    const SamplingVariant samplingVariant;
     std::unique_ptr<DynApproxElectricalCloseness> apx;
     std::unique_ptr<DynApproxElectricalCloseness> apxCopy;
 

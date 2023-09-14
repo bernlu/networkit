@@ -14,11 +14,12 @@
 
 namespace NetworKit {
 ColStoch::ColStoch(Graph &G, count k, Problem robustnessProblem, double epsilon, double diagEpsilon,
-                   bool useJLT, bool jltLossCorrection, std::optional<double> solverEpsilon,
-                   Metric metric, node focusNode)
+                   bool useJLT, bool jltLossCorrection, SamplingVariant samplingVariant,
+                   std::optional<double> solverEpsilon, Metric metric, node focusNode)
     : RobustnessGreedy(G, k, robustnessProblem, metric, focusNode), epsilon(epsilon),
       solverEpsilon(solverEpsilon ? solverEpsilon.value() : (useJLT ? 0.55 : 1e-5)),
-      diagEpsilon(diagEpsilon), useJLT(useJLT), jltLossCorrection(jltLossCorrection) {}
+      diagEpsilon(diagEpsilon), useJLT(useJLT), jltLossCorrection(jltLossCorrection),
+      samplingVariant(samplingVariant) {}
 
 count ColStoch::numberOfNodeCandidates() const {
     const auto n = G.numberOfNodes();
@@ -64,6 +65,8 @@ void ColStoch::run() {
     const count n = G.numberOfNodes();
     result.clear();
     resultValue = 0;
+    Aux::Timer setupTimer;
+    setupTimer.start();
 
     if (useJLT) {
         G.indexEdges();
@@ -71,6 +74,11 @@ void ColStoch::run() {
     } else
         setupSolver<DynLazyLaplacianInverseSolver>(solverEpsilon);
     INFO("ColStoch: solver setup done");
+    setupTimer.stop();
+    INFO("setupSolver time: ", setupTimer.elapsedTag());
+
+    Aux::Timer apxsetupTimer;
+    apxsetupTimer.start();
 
     if (apxCopy)
         apx = std::make_unique<DynApproxElectricalCloseness>(*apxCopy);
@@ -82,6 +90,8 @@ void ColStoch::run() {
             apxCopy = std::make_unique<DynApproxElectricalCloseness>(*apx);
     }
     INFO("ColStoch: apx setup done");
+    apxsetupTimer.stop();
+    INFO("Apx setupSolver time: ", apxsetupTimer.elapsedTag());
 
     if (k + G.numberOfEdges() > (n * (n - 1) / 8 * 3)) { // 3/4 of the complete graph.
         this->hasRun = true;
@@ -91,15 +101,21 @@ void ColStoch::run() {
         return;
     }
 
+    uint64_t solverTime = 0;
+    uint64_t apxSolverTime = 0;
+    uint64_t nodeSetCollectionTime = 0;
+    count gainCalls = 0;
+
     for (count round = 0; round < k; round++) {
-        INFO("ColStoch: main loop round ", round);
+        DEBUG("ColStoch: main loop round ", round);
         double bestGain = -std::numeric_limits<double>::infinity();
         GraphEvent bestEdge;
 
         int it = 0;
 
         do {
-            INFO("ColStoch: starting node set collection");
+            Aux::StartedTimer nodesetTimer;
+            DEBUG("ColStoch: starting node set collection");
             // Collect nodes set for current round
             std::set<node> nodes;
             const auto s = numberOfNodeCandidates();
@@ -112,7 +128,7 @@ void ColStoch::run() {
             // the random choice following this may fail if all the vertex pairs are
             // already present as edges, we use heuristic information the first
             // time, uniform distribution if it fails
-            if (it < 2) {
+            if (it < 2 && samplingVariant != SamplingVariant::UNIFORM) {
                 G.forNodes([&](node u) {
                     double val = apx->getDiagonal()[u];
                     if (val < min)
@@ -123,12 +139,23 @@ void ColStoch::run() {
                 });
                 for (auto &v : nodeWeights) {
                     double u = 0;
-                    switch (robustnessProblem) {
-                    case Problem::GLOBAL_IMPROVEMENT:
-                    case Problem::LOCAL_IMPROVEMENT:
+                    // switch (robustnessProblem) {
+                    // case Problem::GLOBAL_IMPROVEMENT:
+                    // case Problem::LOCAL_IMPROVEMENT:
+                    //     u = v - min; // pick nodes with largest diag
+                    //     break;
+                    // case Problem::GLOBAL_REDUCTION:
+                    //     u = max - v; // pick nodes with smallest diag
+                    //     break;
+                    // }
+                    if (robustnessProblem != Problem::GLOBAL_REDUCTION)
+                        throw std::logic_error(
+                            "other problems are currently not implemneted for colStoch!");
+                    switch (samplingVariant) {
+                    case SamplingVariant::MAX_DIAG:
                         u = v - min; // pick nodes with largest diag
                         break;
-                    case Problem::GLOBAL_REDUCTION:
+                    case SamplingVariant::MIN_DIAG:
                         u = max - v; // pick nodes with smallest diag
                         break;
                     }
@@ -139,7 +166,7 @@ void ColStoch::run() {
             }
             it++;
 
-            INFO("ColStoch: node weights computed");
+            DEBUG("ColStoch: node weights computed");
 
             std::discrete_distribution<> distribution_nodes_heuristic(nodeWeights.begin(),
                                                                       nodeWeights.end());
@@ -151,7 +178,7 @@ void ColStoch::run() {
             std::discrete_distribution<> distribution_nodes_uniform(nodeWeights.begin(),
                                                                     nodeWeights.end());
 
-            while (nodes.size() < s / 2) {
+            while (nodes.size() < s) {
                 node randomNode; // make sure not to pick the forest center node
                 do {
                     randomNode = distribution_nodes_heuristic(Aux::Random::getURNG());
@@ -159,20 +186,26 @@ void ColStoch::run() {
                 nodes.insert(randomNode);
             }
 
-            while (nodes.size() < s) {
-                node randomNode;
-                do {
-                    randomNode = distribution_nodes_uniform(Aux::Random::getURNG());
-                } while (randomNode == forestCenter);
-                nodes.insert(randomNode);
-            }
+            // while (nodes.size() < s) {
+            //     node randomNode;
+            //     do {
+            //         randomNode = distribution_nodes_uniform(Aux::Random::getURNG());
+            //     } while (randomNode == forestCenter);
+            //     nodes.insert(randomNode);
+            // }
             std::vector<node> nodesVec{nodes.begin(), nodes.end()};
 
-            INFO("ColStoch: nodes vec sampled");
+            DEBUG("ColStoch: nodes vec sampled");
+            nodesetTimer.stop();
+            nodeSetCollectionTime += nodesetTimer.elapsedMicroseconds();
 
-            if (!useJLT)
+            if (!useJLT) {
+                Aux::StartedTimer timer;
                 dynamic_cast<DynLazyLaplacianInverseSolver &>(*lapSolver)
                     .computeColumns(nodesVec); // this call is not required (?)
+                timer.stop();
+                solverTime += timer.elapsedMicroseconds();
+            }
 
             // Determine best edge between nodes from node set
 
@@ -182,10 +215,14 @@ void ColStoch::run() {
                     const auto ev = makeEvent(u);
                     if (ev) {
                         double gain = 0;
+                        gainCalls++;
+                        Aux::StartedTimer timer;
                         if (metric == Metric::RESISTANCE)
                             gain = lapSolver->totalResistanceDifference(ev.value());
                         if (metric == Metric::FOREST)
                             gain = lapSolver->totalForestDistanceDifference(ev.value());
+                        timer.stop();
+                        solverTime += timer.elapsedMicroseconds();
                         if (gain > bestGain) {
                             bestEdge = ev.value();
                             bestGain = gain;
@@ -197,10 +234,14 @@ void ColStoch::run() {
                         const auto ev = makeEvent(u, v);
                         if (ev) {
                             double gain = 0;
+                            gainCalls++;
+                            Aux::StartedTimer timer;
                             if (metric == Metric::RESISTANCE)
                                 gain = lapSolver->totalResistanceDifference(ev.value());
                             if (metric == Metric::FOREST)
                                 gain = lapSolver->totalForestDistanceDifference(ev.value());
+                            timer.stop();
+                            solverTime += timer.elapsedMicroseconds();
                             if (gain > bestGain) {
                                 bestEdge = ev.value();
                                 bestGain = gain;
@@ -209,11 +250,11 @@ void ColStoch::run() {
                     }
                 }
             }
-            INFO("ColStoch: edges inspected.");
+            DEBUG("ColStoch: edges inspected.");
 
         } while (bestGain == -std::numeric_limits<double>::infinity());
 
-        INFO("ColStoch: best edge found: (", bestEdge.u, ", ", bestEdge.v, ")");
+        DEBUG("ColStoch: best edge found: (", bestEdge.u, ", ", bestEdge.v, ")");
 
         // Accept edge
         resultValue += bestGain;
@@ -228,18 +269,31 @@ void ColStoch::run() {
         }
         result.push_back(Edge(u, v));
 
-        INFO("ColStoch: edge accepted");
+        DEBUG("ColStoch: edge accepted");
 
         if (round < k - 1) {
+
+            Aux::StartedTimer timer;
             lapSolver->update(bestEdge);
+            timer.stop();
+            solverTime += timer.elapsedMicroseconds();
+
+            Aux::StartedTimer apxtimer;
             apx->update(bestEdge);
+            apxtimer.stop();
+            apxSolverTime += apxtimer.elapsedMicroseconds();
         }
 
-        INFO("ColStoch: solver and apx updated");
+        DEBUG("ColStoch: solver and apx updated");
     }
     // after run: remove forest center again
     restoreGraph();
     INFO("ColStoch: main loop done");
+
+    INFO("gain calls: ", gainCalls);
+    INFO("time spend in LapSolver (microseconds): ", solverTime);
+    INFO("time spend in diagSolver (microseconds): ", apxSolverTime);
+    INFO("time spend sampling nodes (microseconds): ", nodeSetCollectionTime);
     this->hasRun = true;
     // INFO("Computed columns: ", solver.getComputedColumnCount());
 }
