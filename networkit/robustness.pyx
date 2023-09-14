@@ -121,7 +121,6 @@ cdef class RobustnessGreedy(Algorithm):
 cdef extern from "<networkit/robustness/StGreedy.hpp>":
 	cdef cppclass _StGreedy "NetworKit::StGreedy" (_RobustnessGreedy):
 		_StGreedy(_Graph, count, _Problem, _Metric, node) except +
-		void testLAMG(bool_t) except +
 
 cdef class StGreedy(RobustnessGreedy):
 	""" 
@@ -156,9 +155,6 @@ cdef class StGreedy(RobustnessGreedy):
 
 	def __cinit__(self, Graph G, k, robustnessProblem, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
 		self._this = new _StGreedy(G._this, k, robustnessProblem, metric, focusNode)
-
-	def testLamg(self, forest: bool):
-		(<_StGreedy*>(self._this)).testLAMG(forest)
 
 
 cdef extern from "<networkit/robustness/SimplStoch.hpp>":
