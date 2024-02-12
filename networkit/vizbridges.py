@@ -141,7 +141,7 @@ def _calculateEdgeColoring(G, palette, edgeScores: List[float] = None) :
 	return hcColors
 
 
-def widgetFromGraph(G, dimension = Dimension.Two, nodeScores = None, nodePartition = None, nodePalette = None, showIds = True, customSize = None, edgeScores: List[float] | Mapping[Tuple[int, int], float] = None, edgePalette = None):
+def widgetFromGraph(G, dimension = Dimension.Two, nodeScores = None, nodePartition = None, nodePalette = None, showIds = True, customSize = None, edgeScores = None, edgePalette = None):
 	""" 
 	widgetFromGraph(G, dimension=Dimension.Two, nodeScores=None, nodePartition=None, nodePalette=None, showIds=True, customSize=None, edgeScores=None, edgePalette=None)
 
