@@ -69,6 +69,18 @@ public:
     void setup(const Matrix &laplacianMatrix) override;
 
     /**
+     * Compute the multigrid hierarchy for the given Laplacian matrix @a laplacianMatrix that
+     * corresponds to the graph @a G using the existing component decomposition @a decomp.
+     * @param laplacianMatrix
+     * @param decomp ComponentDecomposition that corresponds to the graph of the @a laplacianMatrix
+     * @note This setup method allows you to skip some computation in the general setup method. You
+     * can provide your own graph and decomposition via this method to prevent duplicate
+     * computation. Note that the output is undefined if the three parameters do not correspond the
+     * the same graph.
+     */
+    void setup(const Matrix &laplacianMatrix, const Graph &G, const ComponentDecomposition &decomp);
+
+    /**
      * Compute the multigrid hierarchy for te given Laplacian matrix @a laplacianMatrix.
      * @param laplacianMatrix
      * @note The graph has to be connected for this method to work. Otherwise the output is
@@ -173,11 +185,17 @@ void Lamg<Matrix>::setupConnected(const Matrix &laplacianMatrix) {
 
 template <class Matrix>
 void Lamg<Matrix>::setup(const Matrix &laplacianMatrix) {
-    this->laplacianMatrix = laplacianMatrix;
     Graph G = MatrixTools::matrixToGraph(laplacianMatrix);
     ParallelConnectedComponents con(G, false);
     con.run();
-    numComponents = con.numberOfComponents();
+    setup(laplacianMatrix, G, con);
+}
+
+template <class Matrix>
+void Lamg<Matrix>::setup(const Matrix &laplacianMatrix, const Graph &G,
+                         const ComponentDecomposition &decomp) {
+    this->laplacianMatrix = laplacianMatrix;
+    numComponents = decomp.numberOfComponents();
     if (numComponents == 1) {
         initializeForOneComponent();
     } else {
@@ -193,7 +211,7 @@ void Lamg<Matrix>::setup(const Matrix &laplacianMatrix) {
 
         // create solver for every component
         index compIdx = 0;
-        for (const auto &component : con.getPartition().getSubsets()) {
+        for (const auto &component : decomp.getPartition().getSubsets()) {
             components[compIdx] = std::vector<index>(component.begin(), component.end());
 
             std::vector<Triplet> triplets;
