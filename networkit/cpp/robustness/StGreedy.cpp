@@ -42,6 +42,7 @@ void StGreedy::run() {
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
+            INFO("Edge picked: (", e.u, ", ", e.v, ")");
             GraphEvent ev(GraphEvent::EDGE_REMOVAL, e.u, e.v);
             G.removeEdge(ev.u, ev.v);
             lapSolver->update(ev);
@@ -57,6 +58,7 @@ void StGreedy::run() {
             return gain;
         });
         greedy.setPickedItemCallback([&](const Edge &e) {
+            INFO("Edge picked: (", e.u, ", ", e.v, ")");
             GraphEvent ev(GraphEvent::EDGE_ADDITION, e.u, e.v);
             G.addEdge(ev.u, ev.v);
             lapSolver->update(ev);

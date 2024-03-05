@@ -256,49 +256,6 @@ cdef class ColStoch(RobustnessGreedy):
 		self._this = new _ColStoch(G._this, k, robustnessProblem, epsilon, diagEpsilon, useJLT, jltLossCorrection, samplingVariant, _solverEpsilon, metric, focusNode)
 
 
-cdef extern from "<networkit/robustness/SpecStoch.hpp>":
-	cdef cppclass _SpecStoch "NetworKit::SpecStoch" (_RobustnessGreedy):
-		_SpecStoch(_Graph, count, _Problem, double, count, _Metric, node) except +
-
-cdef class SpecStoch(RobustnessGreedy):
-	""" 
-	SpecStoch(G, k, robustnessProblem, epsilon, numberOfEigenpairs, metric=None, focusNode = none)
-
-	SpecStoch algorithm for the graph robustness problem.
-	The algorithm computes the laplacian pseudoinverse using a spectral low rank approximation and uses the stochastic greedy algorithm to pick k edges.
-	
-	Currently, three problem types are supported:
-	- networkit.robustness.RobustnessProblem.GLOBAL_IMPROVEMENT - maximize the robustness of G by adding k edges to G.
-	- networkit.robustness.RobustnessProblem.LOCAL_IMPROVEMENT	- maximize the robustness of G by adding k edges to G. All edges have to be adjacent to the :code:`focusNode`
-	- networkit.robustness.RobustnessProblem.GLOBAL_REDUCTION 	- minimize the robustness of G by removing k edges from G.
-
-	Two types of robustness metric are supported:
-	- networkit.robustness.RobustnessMetric.RESISTANCE 	- uses the effective resistance r(u,v)
-	- networkit.robustness.RobustnessMetric.FOREST		- uses the forest distance f(u,v)
-	By default, resistance is used for improvement problems and forest distance for reduction problems.
-
-	Parameters
-	----------
-	G : networkit.Graph
-		Input graph (undirected).
-	k : int
-		Number of edges to add/remove to/from G.
-	robustnessProblem : networkit.robustness.RobustnessProblem
-		The robustness problem to solve
-	epsilon : float
-		Accuracy parameter for the stochastic greedy algorithm
-	numberOfEigenpairs : int
-		Number of eigenpairs to compute for the laplacian approximation
-	metric : networkit.robustness.RobustnessMetric, optional
-		Metric for robustness computation. Default: depends on :code:`robustnessProblem`
-	focusNode : node, optional
-		Node to which all edges have to be adjacent. Only used for the LOCAL_IMPROVEMENT problem type.
-	"""
-	def __cinit__(self, Graph G, k: int, robustnessProblem, epsilon: float, numberOfEigenpairs: int, metric = RobustnessMetric.AUTOMATIC, focusNode = none):
-		self._this = new _SpecStoch(G._this, k, robustnessProblem, epsilon, numberOfEigenpairs,
-		 metric, focusNode)
-
-
 
 
 cdef extern from "<networkit/robustness/DynLaplacianInverseSolver.hpp>":

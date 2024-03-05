@@ -14,7 +14,7 @@
 #include <networkit/robustness/DynJLTLaplacianInverseSolver.hpp>
 #include <networkit/robustness/DynLaplacianInverseSolver.hpp>
 #include <networkit/robustness/DynLazyLaplacianInverseSolver.hpp>
-#include <networkit/robustness/DynSpectralLaplacianInverseSolver.hpp>
+// #include <networkit/robustness/DynSpectralLaplacianInverseSolver.hpp>
 
 namespace NetworKit {
 
@@ -60,7 +60,7 @@ public:
         solvers.push_back(std::make_unique<DynFullLaplacianInverseSolver>(G));
         // solvers.push_back(std::make_unique<DynLazyLaplacianInverseSolver>(G, 1e-6));
         // solvers.push_back(std::make_unique<DynJLTLaplacianInverseSolver>(G, 0.55));
-        solvers.push_back(std::make_unique<DynSpectralLaplacianInverseSolver>(G, 3));
+        // solvers.push_back(std::make_unique<DynSpectralLaplacianInverseSolver>(G, 3));
         return solvers;
     }
 };

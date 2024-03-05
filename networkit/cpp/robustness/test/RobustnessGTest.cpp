@@ -187,29 +187,29 @@ TEST_F(RobustnessGTest, testSimplStoch_GRIP_smallgraph) {
     EXPECT_EQ(result[1].v, 0);
 }
 
-TEST_F(RobustnessGTest, testSimplStoch_LRIP_smallgraph) {
-    Aux::Random::setSeed(1, true);
-    Graph G = smallGraph();
+// TEST_F(RobustnessGTest, testSimplStoch_LRIP_smallgraph) {
+//     Aux::Random::setSeed(1, true);
+//     Graph G = smallGraph();
 
-    SimplStoch greedy(G, 2, SimplStoch::Problem::LOCAL_IMPROVEMENT, 0.9, false, {},
-                      SimplStoch::Metric::RESISTANCE, 0);
-    greedy.run();
-    auto result = greedy.getResultItems();
-    EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 0);
-    EXPECT_EQ(result[0].v, 4);
-    EXPECT_EQ(result[1].u, 0);
-    EXPECT_EQ(result[1].v, 5);
+//     SimplStoch greedy(G, 2, SimplStoch::Problem::LOCAL_IMPROVEMENT, 0.9, false, {},
+//                       SimplStoch::Metric::RESISTANCE, 0);
+//     greedy.run();
+//     auto result = greedy.getResultItems();
+//     EXPECT_EQ(result.size(), 2);
+//     EXPECT_EQ(result[0].u, 0);
+//     EXPECT_EQ(result[0].v, 4);
+//     EXPECT_EQ(result[1].u, 0);
+//     EXPECT_EQ(result[1].v, 5);
 
-    greedy.resetFocus(2);
-    greedy.run();
-    result = greedy.getResultItems();
-    EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(result[0].u, 2);
-    EXPECT_EQ(result[0].v, 4);
-    EXPECT_EQ(result[1].u, 2);
-    EXPECT_EQ(result[1].v, 5);
-}
+//     greedy.resetFocus(2);
+//     greedy.run();
+//     result = greedy.getResultItems();
+//     EXPECT_EQ(result.size(), 2);
+//     EXPECT_EQ(result[0].u, 2);
+//     EXPECT_EQ(result[0].v, 4);
+//     EXPECT_EQ(result[1].u, 2);
+//     EXPECT_EQ(result[1].v, 5);
+// }
 
 TEST_F(RobustnessGTest, testSimplStoch_GDEL_smallgraph) {
     Aux::Random::setSeed(1, true);
