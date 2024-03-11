@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <queue>
+#include <set>
 #include <vector>
 
 #include <omp.h>
@@ -109,41 +110,39 @@ void SubmodularGreedy<Item>::run() {
 
     bool candidatesLeft = true;
 
+    std::set<size_t> pickedIndices;
+
     while (!itemQueue.empty()) {
         initializeRound(round);
 
-        // Get top updated entry from queue
-        ItemWrapper c;
-        while (true) {
-            if (itemQueue.empty()) {
-                candidatesLeft = false;
-                break;
-            } else {
-                c = itemQueue.top();
-                itemQueue.pop();
-            }
+        Item bestItem = this->items[0];
+        double bestValue = 0;
+        size_t bestIndex = 0;
 
-            // debug_print_sg(c.item);
-
-            if (c.lastUpdated == round)
-                break; // top updated entry found.
-            else {
-                c.value = this->gainFn(c.item);
-                DEBUG(" INSPECTING candidate (", c.item.u, ",", c.item.v, ") new value = ", c.value,
-                      " lastupdated = ", c.lastUpdated);
-                c.lastUpdated = round;
-                itemQueue.push(c);
+        for (size_t i = 0; i < this->items.size(); ++i) {
+            if (pickedIndices.count(i) != 0)
+                continue;
+            double value = this->gainFn(this->items[i]);
+            if (value > bestValue) {
+                bestValue = value;
+                bestItem = this->items[i];
+                bestIndex = i;
             }
         }
+
+        if (pickedIndices.size() == this->items.size())
+            candidatesLeft = false;
+
         if (candidatesLeft) {
-            this->result.push_back(c.item);
-            this->totalGain += c.value;
+            this->result.push_back(bestItem);
+            this->totalGain += bestValue;
+            pickedIndices.insert(bestIndex);
 
             DEBUG(" >>> TotalGain = ", this->totalGain, " <<< ");
             // if constexpr (is_debug_printable_v<Item>)
-            DEBUG(" SELECTED value = ", c.value, " of item = ", c.item);
+            DEBUG(" SELECTED value = ", bestValue, " of item = ", bestItem);
 
-            this->pickedItemCallback(c.item);
+            this->pickedItemCallback(bestItem);
             round++;
             if (round == this->k)
                 break;
