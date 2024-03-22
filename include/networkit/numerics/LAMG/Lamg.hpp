@@ -35,11 +35,11 @@ private:
     MultiLevelSetup<Matrix> lamgSetup;
     Matrix laplacianMatrix;
     std::vector<LevelHierarchy<Matrix>> compHierarchies;
-    std::vector<SolverLamg<Matrix>> compSolvers;
+    std::vector<std::vector<SolverLamg<Matrix>>> compSolvers; // compSolvers[thread][component]
     std::vector<LAMGSolverStatus> compStati;
 
-    std::vector<Vector> initialVectors;
-    std::vector<Vector> rhsVectors;
+    std::vector<std::vector<Vector>> initialVectors; // initialVectors[thread][component]
+    std::vector<std::vector<Vector>> rhsVectors;     // rhsVectors[thread][component]
 
     count numComponents;
     std::vector<std::vector<index>> components;
@@ -169,10 +169,14 @@ public:
 
 template <class Matrix>
 void Lamg<Matrix>::initializeForOneComponent() {
+
+    compSolvers = std::vector<std::vector<SolverLamg<Matrix>>>(omp_get_max_threads());
     compHierarchies = std::vector<LevelHierarchy<Matrix>>(1);
     lamgSetup.setup(laplacianMatrix, compHierarchies[0]);
-    compSolvers.clear();
-    compSolvers.push_back(SolverLamg<Matrix>(compHierarchies[0], smoother));
+    for (auto &cSolv : compSolvers) {
+        cSolv.clear();
+        cSolv.push_back(SolverLamg<Matrix>(compHierarchies[0], smoother));
+    }
     validSetup = true;
 }
 
@@ -197,16 +201,19 @@ void Lamg<Matrix>::setup(const Matrix &laplacianMatrix, const Graph &G,
     this->laplacianMatrix = laplacianMatrix;
     numComponents = decomp.numberOfComponents();
     if (numComponents == 1) {
+
         initializeForOneComponent();
     } else {
         graph2Components = std::vector<index>(G.numberOfNodes());
 
-        initialVectors = std::vector<Vector>(numComponents);
-        rhsVectors = std::vector<Vector>(numComponents);
+        initialVectors = std::vector<std::vector<Vector>>(omp_get_max_threads(),
+                                                          std::vector<Vector>(numComponents));
+        rhsVectors = std::vector<std::vector<Vector>>(omp_get_max_threads(),
+                                                      std::vector<Vector>(numComponents));
 
         components = std::vector<std::vector<index>>(numComponents);
         compHierarchies = std::vector<LevelHierarchy<Matrix>>(numComponents);
-        compSolvers.clear();
+        compSolvers = std::vector<std::vector<SolverLamg<Matrix>>>(omp_get_max_threads());
         compStati = std::vector<LAMGSolverStatus>(numComponents);
 
         // create solver for every component
@@ -228,10 +235,16 @@ void Lamg<Matrix>::setup(const Matrix &laplacianMatrix, const Graph &G,
             }
 
             Matrix compMatrix(component.size(), component.size(), triplets);
-            initialVectors[compIdx] = Vector(component.size());
-            rhsVectors[compIdx] = Vector(component.size());
+            for (auto &iVec : initialVectors) {
+                iVec[compIdx] = Vector(component.size());
+            }
+            for (auto &rhsVec : rhsVectors) {
+                rhsVec[compIdx] = Vector(component.size());
+            }
             lamgSetup.setup(compMatrix, compHierarchies[compIdx]);
-            compSolvers.push_back(SolverLamg<Matrix>(compHierarchies[compIdx], smoother));
+            for (auto &cSolv : compSolvers) {
+                cSolv.push_back(SolverLamg<Matrix>(compHierarchies[compIdx], smoother));
+            }
             LAMGSolverStatus status{};
             status.desiredResidualReduction =
                 this->tolerance * component.size() / G.numberOfNodes();
@@ -260,7 +273,7 @@ SolverStatus Lamg<Matrix>::solve(const Vector &rhs, Vector &result, count maxCon
             this->tolerance * rhs.length() / (laplacianMatrix * result - rhs).length();
         stat.maxIters = maxIterations;
         stat.maxConvergenceTime = maxConvergenceTime;
-        compSolvers[0].solve(result, rhs, stat);
+        compSolvers[0][0].solve(result, rhs, stat);
 
         status.residual = stat.residual;
         status.numIters = stat.numIters;
@@ -270,22 +283,22 @@ SolverStatus Lamg<Matrix>::solve(const Vector &rhs, Vector &result, count maxCon
         count maxIters = 0;
         for (index i = 0; i < components.size(); ++i) {
             for (auto element : components[i]) {
-                initialVectors[i][graph2Components[element]] = result[element];
-                rhsVectors[i][graph2Components[element]] = rhs[element];
+                initialVectors[0][i][graph2Components[element]] = result[element];
+                rhsVectors[0][i][graph2Components[element]] = rhs[element];
             }
 
-            double resReduction =
-                this->tolerance * rhsVectors[i].length()
-                / (compHierarchies[i].at(0).getLaplacian() * initialVectors[i] - rhsVectors[i])
-                      .length();
+            double resReduction = this->tolerance * rhsVectors[0][i].length()
+                                  / (compHierarchies[i].at(0).getLaplacian() * initialVectors[0][i]
+                                     - rhsVectors[0][i])
+                                        .length();
             compStati[i].desiredResidualReduction =
                 resReduction * components[i].size() / laplacianMatrix.numberOfRows();
             compStati[i].maxIters = maxIterations;
             compStati[i].maxConvergenceTime = maxConvergenceTime;
-            compSolvers[i].solve(initialVectors[i], rhsVectors[i], compStati[i]);
+            compSolvers[0][i].solve(initialVectors[0][i], rhsVectors[0][i], compStati[i]);
 
             for (auto element : components[i]) { // write solution back to result
-                result[element] = initialVectors[i][graph2Components[element]];
+                result[element] = initialVectors[0][i][graph2Components[element]];
             }
 
             maxIters = std::max(maxIters, compStati[i].numIters);
@@ -302,16 +315,16 @@ SolverStatus Lamg<Matrix>::solve(const Vector &rhs, Vector &result, count maxCon
 template <class Matrix>
 void Lamg<Matrix>::parallelSolve(const std::vector<Vector> &rhs, std::vector<Vector> &results,
                                  count maxConvergenceTime, count maxIterations) {
+    assert(rhs.size() == results.size());
+    const index numThreads = omp_get_max_threads();
     if (numComponents == 1) {
-        assert(rhs.size() == results.size());
-        const index numThreads = omp_get_max_threads();
-        if (compSolvers.size() != numThreads) {
-            compSolvers.clear();
+        //     if (compSolvers.size() != numThreads) {
+        //         compSolvers.clear();
 
-            for (index i = 0; i < (index)numThreads; ++i) {
-                compSolvers.push_back(SolverLamg<Matrix>(compHierarchies[0], smoother));
-            }
-        }
+        //         for (index i = 0; i < (index)numThreads; ++i) {
+        //             compSolvers.push_back(SolverLamg<Matrix>(compHierarchies[0], smoother));
+        //         }
+        //     }
 
 #pragma omp parallel for
         for (omp_index i = 0; i < static_cast<omp_index>(rhs.size()); ++i) {
@@ -321,7 +334,37 @@ void Lamg<Matrix>::parallelSolve(const std::vector<Vector> &rhs, std::vector<Vec
                                             / (laplacianMatrix * results[i] - rhs[i]).length();
             stat.maxIters = maxIterations;
             stat.maxConvergenceTime = maxConvergenceTime;
-            compSolvers[threadId].solve(results[i], rhs[i], stat);
+            compSolvers[threadId][0].solve(results[i], rhs[i], stat);
+        }
+    } else {
+#pragma omp parallel for
+        for (omp_index i = 0; i < static_cast<omp_index>(rhs.size()); ++i) {
+            index threadId = omp_get_thread_num();
+
+            for (index comp_i = 0; comp_i < components.size(); ++comp_i) {
+                for (auto element : components[comp_i]) {
+                    initialVectors[threadId][comp_i][graph2Components[element]] =
+                        results[i][element];
+                    rhsVectors[threadId][comp_i][graph2Components[element]] = rhs[i][element];
+                }
+                LAMGSolverStatus stat;
+                double resReduction = this->tolerance * rhsVectors[threadId][comp_i].length()
+                                      / (compHierarchies[comp_i].at(0).getLaplacian()
+                                             * initialVectors[threadId][comp_i]
+                                         - rhsVectors[threadId][comp_i])
+                                            .length();
+                stat.desiredResidualReduction =
+                    resReduction * components[comp_i].size() / laplacianMatrix.numberOfRows();
+                stat.maxIters = maxIterations;
+                stat.maxConvergenceTime = maxConvergenceTime;
+                compSolvers[threadId][comp_i].solve(initialVectors[threadId][comp_i],
+                                                    rhsVectors[threadId][comp_i], stat);
+
+                for (auto element : components[comp_i]) { // write solution back to result
+                    results[i][element] =
+                        initialVectors[threadId][comp_i][graph2Components[element]];
+                }
+            }
         }
     }
 }

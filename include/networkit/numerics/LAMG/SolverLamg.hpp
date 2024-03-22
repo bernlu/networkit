@@ -46,7 +46,7 @@ struct LAMGSolverStatus {
 template <class Matrix>
 class SolverLamg {
 private:
-    LevelHierarchy<Matrix> &hierarchy;
+    const LevelHierarchy<Matrix> &hierarchy;
     const Smoother<Matrix> &smoother;
 
     // data structures for iterate recombination
@@ -73,7 +73,7 @@ public:
      * @param hierarchy Reference to the LevelHierarchy constructed by MultiLevelSetup.
      * @param smoother Reference to a smoother.
      */
-    SolverLamg(LevelHierarchy<Matrix> &hierarchy, const Smoother<Matrix> &smoother)
+    SolverLamg(const LevelHierarchy<Matrix> &hierarchy, const Smoother<Matrix> &smoother)
         : hierarchy(hierarchy), smoother(smoother),
           bStages(hierarchy.size(), std::vector<Vector>()) {}
 

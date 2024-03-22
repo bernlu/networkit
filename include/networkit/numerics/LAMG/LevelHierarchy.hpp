@@ -40,13 +40,15 @@ public:
                              const std::vector<EliminationStage<Matrix>> &coarseningStages);
     void addAggregationLevel(const Matrix &A, const Matrix &P, const Matrix &R);
     void setLastAsCoarsest();
-    inline DenseMatrix &getCoarseMatrix() { return coarseLUMatrix; }
+    inline const DenseMatrix &getCoarseMatrix() const { return coarseLUMatrix; }
 
     inline count size() const {
         return levelType.size() + 1; // elimination + aggregation levels + finestLevel
     }
 
     LevelType getType(index levelIdx) const;
+    const Level<Matrix> &at(index levelIdx) const;
+    double cycleIndex(index levelIdx) const;
     Level<Matrix> &at(index levelIdx);
     double cycleIndex(index levelIdx);
 };
@@ -115,6 +117,42 @@ Level<Matrix> &LevelHierarchy<Matrix>::at(index levelIdx) {
     } else {
         return aggregationLevels[levelIndex[levelIdx]];
     }
+}
+
+template <class Matrix>
+const Level<Matrix> &LevelHierarchy<Matrix>::at(index levelIdx) const {
+    assert(levelIdx < this->size());
+
+    if (levelIdx == 0) { // finest level
+        return finestLevel;
+    } else {
+        levelIdx--;
+    }
+
+    if (levelType[levelIdx] == ELIMINATION) {
+        return eliminationLevels[levelIndex[levelIdx]];
+    } else {
+        return aggregationLevels[levelIndex[levelIdx]];
+    }
+}
+
+template <class Matrix>
+double LevelHierarchy<Matrix>::cycleIndex(index levelIdx) const {
+    double gamma = 1.0;
+    if (getType(levelIdx + 1) != ELIMINATION) {
+        const double finestNumEdges = finestLevel.getLaplacian().nnz();
+        const double numFineEdges = this->at(levelIdx).getLaplacian().nnz();
+
+        if (numFineEdges > 0.1 * finestNumEdges) {
+            gamma = SETUP_CYCLE_INDEX;
+        } else {
+            double numCoarseEdges = this->at(levelIdx + 1).getLaplacian().nnz();
+            gamma = std::max(
+                1.0, std::min(1.5, SETUP_COARSENING_WORK_GUARD / (numCoarseEdges / numFineEdges)));
+        }
+    }
+
+    return gamma;
 }
 
 template <class Matrix>
